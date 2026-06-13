@@ -19,18 +19,21 @@ require("dotenv").config();
 import { execSync } from "child_process";
 import { createHash } from "crypto";
 
-if (process.platform !== "linux") {
+const isWindows = process.platform === "win32";
+const isRoot = typeof process.getuid === "function" && process.getuid() === 0;
+
+if (process.platform !== "linux" && !isWindows) {
     console.warn("running in not linux!");
 }
 
-if (process.getuid() === 0) {
+if (!isWindows && isRoot) {
     try {
         execSync(`renice -n -10 -p ${ process.pid }`);
         execSync(`ionice -c 1 -n 7 -p ${ process.pid }`);
     } catch (e) {
         console.warn("error on modify nice: " + (e as Error).message);
     }
-} else {
+} else if (!isWindows) {
     console.warn("running in not root!");
 }
 

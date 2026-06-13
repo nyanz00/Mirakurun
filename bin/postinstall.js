@@ -31,7 +31,7 @@ if (semver.satisfies(process.version, pkg.engines.node) === true) {
 }
 
 // init
-if (process.getuid() !== 0) {
+if (typeof process.getuid !== "function" || process.getuid() !== 0) {
     process.exit(0);
 }
 

@@ -37,6 +37,10 @@
   "scripts": {
     "start": "node --max-semi-space-size=64 -r source-map-support/register lib/server.js ",
     "debug": "node --max-semi-space-size=64 -r source-map-support/register --inspect=0.0.0.0:9229 lib/server.js",
+    "start.win32": "node.exe --max-semi-space-size=64 -r source-map-support/register bin/init.win32.js",
+    "debug.win32": "node.exe --max-semi-space-size=64 -r source-map-support/register --inspect bin/init.win32.js",
+    "service:install.win32": "node bin/service.win32.js install",
+    "service:uninstall.win32": "node bin/service.win32.js uninstall",
     "build": "npm run build:server && npm run build:webpack",
     "build:server": "tslint --project . && tsc --declaration",
     "build:webpack": "webpack",
@@ -118,7 +122,8 @@
   "engineStrict": true,
   "os": [
     "linux",
-    "darwin"
+    "darwin",
+    "win32"
   ],
   "funding": {
     "type": "opencollective",

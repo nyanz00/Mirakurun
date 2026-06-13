@@ -41,7 +41,7 @@ export const parameters = [
 ];
 
 export const get: Operation = (req, res) => {
-    const service = _.service.get(req.params.id as any as number);
+    const service = _.service.get(parseInt(req.params.id, 10));
 
     if (service === null || service === undefined) {
         api.responseError(res, 404);
@@ -69,7 +69,7 @@ export const get: Operation = (req, res) => {
         priority: parseInt(req.get("X-Mirakurun-Priority"), 10) || 0,
         agent: req.get("User-Agent"),
         url: req.url,
-        disableDecoder: (<number> <any> req.query.decode === 0)
+        disableDecoder: (parseInt(req.query.decode as string, 10) === 0)
     }, res)
         .then(tsFilter => {
             if (requestAborted === true || req.aborted === true) {

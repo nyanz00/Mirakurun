@@ -30,6 +30,14 @@ import * as system from "./system";
 import regexp from "./regexp";
 import _ from "./_";
 import { createRPCServer, initRPCNotifier } from "./rpc";
+import * as configChannelsAPI from "./api/config/channels";
+import * as configChannelsScanAPI from "./api/config/channels/scan";
+import * as configServerAPI from "./api/config/server";
+import * as configTunersAPI from "./api/config/tuners";
+import * as channelStreamAPI from "./api/channels/{type}/{channel}/stream";
+import * as channelServiceStreamAPI from "./api/channels/{type}/{channel}/services/{id}/stream";
+import * as programStreamAPI from "./api/programs/{id}/stream";
+import * as serviceStreamAPI from "./api/services/{id}/stream";
 
 const pkg = require("../../package.json");
 
@@ -96,6 +104,11 @@ export class Server {
         app.disable("x-powered-by");
         app.disable("etag");
 
+        app.use((req: express.Request, res: express.Response, next) => {
+            req.url = req.url.replace(/\\/g, "/");
+            next();
+        });
+
         app.use(morgan(":remote-addr :remote-user :method :url HTTP/:http-version :status :res[content-length] - :response-time ms :user-agent", {
             stream: log.event as any
         }));
@@ -152,6 +165,23 @@ export class Server {
             app.use("/api/debug", express.static("lib/ui/redoc-ui.html"));
         }
 
+        app.get("/api/config/server", configServerAPI.get as express.RequestHandler);
+        app.put("/api/config/server", configServerAPI.put as express.RequestHandler);
+        app.get("/api/config/tuners", configTunersAPI.get as express.RequestHandler);
+        app.put("/api/config/tuners", configTunersAPI.put as express.RequestHandler);
+        app.get("/api/config/channels", configChannelsAPI.get as express.RequestHandler);
+        app.put("/api/config/channels", configChannelsAPI.put as express.RequestHandler);
+        app.get("/api/config/channels/scan", configChannelsScanAPI.get as express.RequestHandler);
+        app.put("/api/config/channels/scan", configChannelsScanAPI.put as express.RequestHandler);
+        app.get("/api/programs/:id/stream", programStreamAPI.get as express.RequestHandler);
+        app.head("/api/programs/:id/stream", programStreamAPI.head as express.RequestHandler);
+        app.get("/api/services/:id/stream", serviceStreamAPI.get as express.RequestHandler);
+        app.head("/api/services/:id/stream", serviceStreamAPI.head as express.RequestHandler);
+        app.get("/api/channels/:type/:channel/stream", channelStreamAPI.get as express.RequestHandler);
+        app.head("/api/channels/:type/:channel/stream", channelStreamAPI.head as express.RequestHandler);
+        app.get("/api/channels/:type/:channel/services/:id/stream", channelServiceStreamAPI.get as express.RequestHandler);
+        app.head("/api/channels/:type/:channel/services/:id/stream", channelServiceStreamAPI.head as express.RequestHandler);
+
         const api = yaml.load(fs.readFileSync("api.yml", "utf8")) as OpenAPIV2.Document;
         api.info.version = pkg.version;
 
@@ -197,19 +227,25 @@ export class Server {
             this._servers.add(server);
             this._rpcs.add(createRPCServer(server));
 
-            if (regexp.unixDomainSocket.test(address)) {
+            if (regexp.unixDomainSocket.test(address) || regexp.windowsNamedPipe.test(address)) {
                 if (fs.existsSync(address)) {
                     fs.unlinkSync(address);
                 }
 
                 await new Promise<void>(resolve => {
                     server.listen(address, () => {
-                        log.info("listening on http+unix://%s", address.replace(/\//g, "%2F"));
+                        if (regexp.windowsNamedPipe.test(address)) {
+                            log.info("listening on http+pipe://%s", address);
+                        } else {
+                            log.info("listening on http+unix://%s", address.replace(/\//g, "%2F"));
+                        }
                         resolve();
                     });
                 });
 
-                fs.chmodSync(address, "777");
+                if (regexp.unixDomainSocket.test(address)) {
+                    fs.chmodSync(address, "777");
+                }
             } else {
                 await new Promise<void>(resolve => {
                     server.listen(serverConfig.port, address, () => {

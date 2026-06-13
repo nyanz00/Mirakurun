@@ -274,7 +274,7 @@ export default class TunerDevice extends EventEmitter {
         this._command = cmd;
         this._channel = ch;
 
-        if (this._config.dvbDevicePath) {
+        if (this._config.dvbDevicePath && process.platform !== "win32") {
             const cat = child_process.spawn("cat", [this._config.dvbDevicePath]);
 
             cat.once("error", (err) => {
@@ -377,7 +377,12 @@ export default class TunerDevice extends EventEmitter {
         await new Promise<void>(resolve => {
             this.once("release", resolve);
 
-            if (/^dvbv5-zap /.test(this._command) === true) {
+            if (process.platform === "win32") {
+                const timer = setTimeout(() => this._process.kill(), 3000);
+                this._process.once("exit", () => clearTimeout(timer));
+
+                this._process.stdin.write("\n");
+            } else if (/^dvbv5-zap /.test(this._command) === true) {
                 this._process.kill("SIGKILL");
             } else {
                 const timer = setTimeout(() => {

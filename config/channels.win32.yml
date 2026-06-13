@@ -1,0 +1,47 @@
+- name: MX
+  type: GR
+  channel: '3'
+  commandVars:
+    space: 0
+
+- name: CX
+  type: GR
+  channel: '8'
+  commandVars:
+    space: 0
+
+- name: TBS
+  type: GR
+  channel: '9'
+  commandVars:
+    space: 0
+
+- name: TX
+  type: GR
+  channel: '10'
+  commandVars:
+    space: 0
+
+- name: EX
+  type: GR
+  channel: '11'
+  commandVars:
+    space: 0
+
+- name: NTV
+  type: GR
+  channel: '12'
+  commandVars:
+    space: 0
+
+- name: NHK E
+  type: GR
+  channel: '13'
+  commandVars:
+    space: 0
+
+- name: NHK G
+  type: GR
+  channel: '14'
+  commandVars:
+    space: 0

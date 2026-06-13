@@ -63,7 +63,7 @@ export const get: Operation = (req, res) => {
         return;
     }
 
-    const reqId = req.params.id as any as number;
+    const reqId = parseInt(req.params.id, 10);
     const service = _.service.findByChannel(channel).find(sv => (sv.id === reqId || sv.serviceId === reqId));
 
     if (!service) {
@@ -92,7 +92,7 @@ export const get: Operation = (req, res) => {
         priority: parseInt(req.get("X-Mirakurun-Priority"), 10) || 0,
         agent: req.get("User-Agent"),
         url: req.url,
-        disableDecoder: (<number> <any> req.query.decode === 0)
+        disableDecoder: (parseInt(req.query.decode as string, 10) === 0)
     }, res)
         .then(tsFilter => {
             if (requestAborted === true || req.aborted === true) {

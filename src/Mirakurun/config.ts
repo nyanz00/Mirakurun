@@ -54,10 +54,19 @@ const {
 } = process.env;
 
 const IS_DOCKER = DOCKER === "YES";
+const IS_WIN32 = process.platform === "win32" || process.env.MIRAKURUN_PLATFORM === "win32";
 
 type Server = Readonly<apid.ConfigServer>;
 type Tuner = Readonly<apid.ConfigTunersItem>;
 type Channel = Readonly<apid.ConfigChannelsItem>;
+
+function getDefaultConfigPath(name: "server" | "tuners" | "channels"): string {
+    if (IS_WIN32) {
+        return `config/${name}.win32.yml`;
+    }
+
+    return `config/${name}.yml`;
+}
 
 export async function loadServer(): Promise<Server> {
     const path = SERVER_CONFIG_PATH;
@@ -82,7 +91,7 @@ export async function loadServer(): Promise<Server> {
         // copy if not exists
         try {
             log.info("copying default server config to `%s`", path);
-            await copyFile("config/server.yml", path);
+            await copyFile(getDefaultConfigPath("server"), path);
         } catch (e) {
             log.fatal("failed to copy server config to `%s`", path);
             console.error(e);
@@ -265,46 +274,50 @@ export async function loadTuners(): Promise<Tuner[]> {
         log.info("trying to detect tuners...");
         const tuners: Tuner[] = [];
 
-        // detect dvbdev
-        try {
-            execSync("which dvb-fe-tool");
+        if (IS_WIN32 === true) {
+            log.info("skipping DVB device detection on Windows");
+        } else {
+            // detect dvbdev
+            try {
+                execSync("which dvb-fe-tool");
 
-            const adapters = readdirSync("/dev/dvb").filter(name => /^adapter[0-9]+$/.test(name));
-            for (let i = 0; i < adapters.length; i++) {
-                log.info("detected DVB device: %s", adapters[i]);
+                const adapters = readdirSync("/dev/dvb").filter(name => /^adapter[0-9]+$/.test(name));
+                for (let i = 0; i < adapters.length; i++) {
+                    log.info("detected DVB device: %s", adapters[i]);
 
-                execSync("sleep 1");
-                const properties = execSync(`dvb-fe-tool -a ${i} 2>&1 || true`, { encoding: "utf8" });
-                const isISDBT = properties.includes("[ISDBT]");
-                const isISDBS = properties.includes("[ISDBS]");
-                if (!isISDBT && !isISDBS) {
-                    continue;
+                    execSync("sleep 1");
+                    const properties = execSync(`dvb-fe-tool -a ${i} 2>&1 || true`, { encoding: "utf8" });
+                    const isISDBT = properties.includes("[ISDBT]");
+                    const isISDBS = properties.includes("[ISDBS]");
+                    if (!isISDBT && !isISDBS) {
+                        continue;
+                    }
+
+                    const tuner: Writable<Tuner> = {
+                        name: adapters[i],
+                        types: undefined,
+                        dvbDevicePath: `/dev/dvb/adapter${i}/dvr0`,
+                        decoder: "arib-b25-stream-test"
+                    };
+
+                    if (isISDBT) {
+                        tuner.types = ["GR"];
+                        tuner.command = `dvbv5-zap -a ${i} -c ./config/dvbconf-for-isdb/conf/dvbv5_channels_isdbt.conf -r -P <channel>`;
+                    } else if (isISDBS) {
+                        tuner.types = ["BS", "CS"];
+                        tuner.command = `dvbv5-zap -a ${i} -c ./config/dvbconf-for-isdb/conf/dvbv5_channels_isdbs.conf -r -P <channel>`;
+                    }
+
+                    tuners.push(tuner);
+
+                    log.info("added tuner config (generated): %s", JSON.stringify(tuner));
                 }
-
-                const tuner: Writable<Tuner> = {
-                    name: adapters[i],
-                    types: undefined,
-                    dvbDevicePath: `/dev/dvb/adapter${i}/dvr0`,
-                    decoder: "arib-b25-stream-test"
-                };
-
-                if (isISDBT) {
-                    tuner.types = ["GR"];
-                    tuner.command = `dvbv5-zap -a ${i} -c ./config/dvbconf-for-isdb/conf/dvbv5_channels_isdbt.conf -r -P <channel>`;
-                } else if (isISDBS) {
-                    tuner.types = ["BS", "CS"];
-                    tuner.command = `dvbv5-zap -a ${i} -c ./config/dvbconf-for-isdb/conf/dvbv5_channels_isdbs.conf -r -P <channel>`;
+            } catch (e) {
+                if (/which dvb-fe-tool/.test(e.message)) {
+                    log.warn("`dvb-fe-tool` is required to detect DVB devices. (%s)", e.message);
+                } else {
+                    console.error(e);
                 }
-
-                tuners.push(tuner);
-
-                log.info("added tuner config (generated): %s", JSON.stringify(tuner));
-            }
-        } catch (e) {
-            if (/which dvb-fe-tool/.test(e.message)) {
-                log.warn("`dvb-fe-tool` is required to detect DVB devices. (%s)", e.message);
-            } else {
-                console.error(e);
             }
         }
 
@@ -327,7 +340,7 @@ export async function loadTuners(): Promise<Tuner[]> {
         log.info("missing tuners config `%s`", path);
         try {
             log.info("copying default tuners config to `%s`", path);
-            await copyFile("config/tuners.yml", path);
+            await copyFile(getDefaultConfigPath("tuners"), path);
         } catch (e) {
             log.fatal("failed to copy tuners config to `%s`", path);
             console.error(e);
@@ -364,7 +377,7 @@ export async function loadChannels(): Promise<Channel[]> {
         log.info("missing channels config `%s`", path);
         try {
             log.info("copying default channels config to `%s`", path);
-            await copyFile("config/channels.yml", path);
+            await copyFile(getDefaultConfigPath("channels"), path);
         } catch (e) {
             log.fatal("failed to copy channels config to `%s`", path);
             console.error(e);

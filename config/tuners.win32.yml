@@ -1,0 +1,14 @@
+- name: PT3-T0
+  types:
+    - GR
+  command: 'C:\nyanzTV\BonDriver_PT3-ST\Win32\BonRecTest.exe --space <space> --decoder C:\nyanzTV\BonDriver_PT3-ST\Win32\B25Decoder.dll --driver C:\nyanzTV\BonDriver_PT3-ST\Win32\BonDriver_PT3-T0.dll --output - --channel <channel>'
+  decoder: ~
+  isDisabled: false
+
+- name: PT3-S0
+  types:
+    - BS
+    - CS
+  command: 'C:\nyanzTV\BonDriver_PT3-ST\Win32\BonRecTest.exe --space <space> --decoder C:\nyanzTV\BonDriver_PT3-ST\Win32\B25Decoder.dll --driver C:\nyanzTV\BonDriver_PT3-ST\Win32\BonDriver_PT3-S0.dll --output - --channel <channel>'
+  decoder: ~
+  isDisabled: false
