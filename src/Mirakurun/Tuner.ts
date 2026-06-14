@@ -380,7 +380,7 @@ export class Tuner {
             try {
                 const programs = await remoteDevice.getRemotePrograms({ networkId: setting.networkId });
                 await common.sleep(1000);
-                _.program.findByNetworkIdAndReplace(setting.networkId, programs);
+                _.program.findByNetworkIdAndReplace(setting.networkId, programs, true);
                 for (const service of _.service.findByNetworkId(setting.networkId)) {
                     service.epgReady = true;
                 }

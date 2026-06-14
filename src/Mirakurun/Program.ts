@@ -162,8 +162,37 @@ export class Program {
         return items;
     }
 
-    findByNetworkIdAndReplace(networkId: number, programs: db.Program[]): void {
+    findByNetworkIdAndReplace(networkId: number, programs: db.Program[], emitEvents = false): void {
         let count = 0;
+
+        if (emitEvents === true) {
+            const incomingIds = new Set(programs.map(program => program.id));
+
+            for (const item of [...this._itemMap.values()].reverse()) {
+                if (item.networkId === networkId && incomingIds.has(item.id) === false) {
+                    this.remove(item.id);
+                    Event.emit("program", "remove", { id: item.id });
+                    --count;
+                }
+            }
+
+            for (const program of programs) {
+                const item = this.get(program.id);
+                if (item) {
+                    if (common.updateObject(item, program) === true) {
+                        this._emitPrograms.set(item, "update");
+                    }
+                } else {
+                    this.add(program);
+                }
+                ++count;
+            }
+
+            log.debug("programs replaced (networkId=%d, count=%d, emitEvents=true)", networkId, count);
+
+            this.save();
+            return;
+        }
 
         for (const item of [...this._itemMap.values()].reverse()) {
             if (item.networkId === networkId) {

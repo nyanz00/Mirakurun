@@ -30,16 +30,17 @@ import * as system from "./system";
 import regexp from "./regexp";
 import _ from "./_";
 import { createRPCServer, initRPCNotifier } from "./rpc";
-import * as configChannelsAPI from "./api/config/channels";
-import * as configChannelsScanAPI from "./api/config/channels/scan";
-import * as configServerAPI from "./api/config/server";
-import * as configTunersAPI from "./api/config/tuners";
-import * as channelStreamAPI from "./api/channels/{type}/{channel}/stream";
-import * as channelServiceStreamAPI from "./api/channels/{type}/{channel}/services/{id}/stream";
-import * as programStreamAPI from "./api/programs/{id}/stream";
-import * as serviceStreamAPI from "./api/services/{id}/stream";
 
 const pkg = require("../../package.json");
+const fsRoutesModule = require("fs-routes");
+const fsRoutes = fsRoutesModule.default || fsRoutesModule;
+
+function getOpenAPIPathSpecs() {
+    return fsRoutes("./lib/Mirakurun/api").map(route => ({
+        path: route.route.replace(/\\/g, "/"),
+        module: require(route.path)
+    }));
+}
 
 export class Server {
     /** used for test */
@@ -165,23 +166,6 @@ export class Server {
             app.use("/api/debug", express.static("lib/ui/redoc-ui.html"));
         }
 
-        app.get("/api/config/server", configServerAPI.get as express.RequestHandler);
-        app.put("/api/config/server", configServerAPI.put as express.RequestHandler);
-        app.get("/api/config/tuners", configTunersAPI.get as express.RequestHandler);
-        app.put("/api/config/tuners", configTunersAPI.put as express.RequestHandler);
-        app.get("/api/config/channels", configChannelsAPI.get as express.RequestHandler);
-        app.put("/api/config/channels", configChannelsAPI.put as express.RequestHandler);
-        app.get("/api/config/channels/scan", configChannelsScanAPI.get as express.RequestHandler);
-        app.put("/api/config/channels/scan", configChannelsScanAPI.put as express.RequestHandler);
-        app.get("/api/programs/:id/stream", programStreamAPI.get as express.RequestHandler);
-        app.head("/api/programs/:id/stream", programStreamAPI.head as express.RequestHandler);
-        app.get("/api/services/:id/stream", serviceStreamAPI.get as express.RequestHandler);
-        app.head("/api/services/:id/stream", serviceStreamAPI.head as express.RequestHandler);
-        app.get("/api/channels/:type/:channel/stream", channelStreamAPI.get as express.RequestHandler);
-        app.head("/api/channels/:type/:channel/stream", channelStreamAPI.head as express.RequestHandler);
-        app.get("/api/channels/:type/:channel/services/:id/stream", channelServiceStreamAPI.get as express.RequestHandler);
-        app.head("/api/channels/:type/:channel/services/:id/stream", channelServiceStreamAPI.head as express.RequestHandler);
-
         const api = yaml.load(fs.readFileSync("api.yml", "utf8")) as OpenAPIV2.Document;
         api.info.version = pkg.version;
 
@@ -189,7 +173,7 @@ export class Server {
             app: app,
             apiDoc: api,
             docsPath: "/docs",
-            paths: "./lib/Mirakurun/api"
+            paths: getOpenAPIPathSpecs()
         });
 
         app.use((err, req, res: express.Response, next) => {
