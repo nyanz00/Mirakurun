@@ -1,3 +1,7 @@
+npm install
+npm run build
+npm run start.win32
+
 [![Mirakurun](https://gist.githubusercontent.com/kanreisa/0ab27d7771e97edce5a24cc81b9b8ce6/raw/8e08d3d91390794b139ed593e3a834a8b41f651c/logo-mirakurun_2025-03-29.svg)](https://github.com/Chinachu/Mirakurun)
 
 # Mirakurun
