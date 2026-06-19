@@ -77,12 +77,18 @@ interface FlagState {
 
 interface DownloadData {
     downloadId: number;
-    // blockSize: number; // 4066
+    blockSize: number;
     moduleId: number;
     moduleVersion: number;
     moduleSize: number;
     loadedBytes: number;
+    receivedBlocks: Set<number>;
     data?: Buffer;
+}
+
+interface ContinuityState {
+    counter: number;
+    duplication: number;
 }
 
 export default class TSFilter extends EventEmitter {
@@ -139,6 +145,7 @@ export default class TSFilter extends EventEmitter {
     private _logoDataTimer: NodeJS.Timeout;
     private _provideEventLastDetectedAt = -1;
     private _provideEventTimeout: NodeJS.Timeout = null;
+    private _continuityStateMap = new Map<number, ContinuityState>();
 
     /** Number divisible by a multiple of 188 */
     private _maxBufferBytesBeforeReady: number = (() => {
@@ -392,6 +399,7 @@ export default class TSFilter extends EventEmitter {
                 };
             }
             ++this.streamInfo[pid].packet;
+            this._checkContinuityCounter(packet, pid);
 
             this._buffer.push(packet);
         }
@@ -403,6 +411,53 @@ export default class TSFilter extends EventEmitter {
                 parsingBuffers.length = 0;
             });
         }
+    }
+
+    private _checkContinuityCounter(packet: Buffer, pid: number): void {
+        const adaptationFieldControl = (packet[3] & 0x30) >> 4;
+        const hasAdaptationField = adaptationFieldControl === 2 || adaptationFieldControl === 3;
+        const hasPayload = adaptationFieldControl === 1 || adaptationFieldControl === 3;
+        const state = this._continuityStateMap.get(pid) || {
+            counter: -1,
+            duplication: 0
+        };
+
+        if (hasAdaptationField && packet[4] > 0 && (packet[5] & 0x80) !== 0) {
+            state.counter = -1;
+            state.duplication = 0;
+        }
+
+        if (hasPayload === true) {
+            const counter = packet[3] & 0x0F;
+
+            if (state.counter !== -1) {
+                const previous = state.counter;
+                const expected = (previous + 1) & 0x0F;
+                let dropped = false;
+
+                if (counter === previous) {
+                    ++state.duplication;
+
+                    if (state.duplication > 1) {
+                        dropped = true;
+                    }
+                } else {
+                    state.duplication = 0;
+
+                    if (counter !== expected) {
+                        dropped = true;
+                    }
+                }
+
+                if (dropped === true) {
+                    ++this.streamInfo[pid].drop;
+                }
+            }
+
+            state.counter = counter;
+        }
+
+        this._continuityStateMap.set(pid, state);
     }
 
     private _onPAT(pid: number, data: any): void {
@@ -722,21 +777,34 @@ export default class TSFilter extends EventEmitter {
 
             const blockNumber: number = ddb.blockNumber;
             const blockDataByte: Buffer = ddb.blockDataByte;
+            const blockOffset = dl.blockSize * blockNumber;
 
-            blockDataByte.copy(dl.data, DSMCC_BLOCK_SIZE * blockNumber);
-            dl.loadedBytes += blockDataByte.length;
+            if (dl.receivedBlocks.has(blockNumber)) {
+                return;
+            }
+            if (blockOffset >= dl.moduleSize) {
+                return;
+            }
+
+            blockDataByte.copy(dl.data, blockOffset);
+            dl.loadedBytes += Math.min(blockDataByte.length, dl.moduleSize - blockOffset);
+            dl.receivedBlocks.add(blockNumber);
 
             log.debug("TSFilter#_onDSMCC: detected DDB and logo data downloading... (downloadId=%d, %d/%d bytes)", downloadId, dl.loadedBytes, dl.moduleSize);
 
-            if (dl.loadedBytes !== dl.moduleSize) {
+            if (dl.receivedBlocks.size < Math.ceil(dl.moduleSize / dl.blockSize)) {
                 return;
             }
 
             const dlData = dl.data;
+            this._dlDataMap.delete(downloadId);
             delete dl.data;
 
             const dataModule = new tsDataModule.TsDataModuleLogo(dlData).decode();
             for (const logo of dataModule.logos) {
+                const logoData = new TsLogo(logo.data_byte).decode(); // png
+                const savedLogoDataKeys = new Set<string>();
+
                 for (const logoService of logo.services) {
                     const service = _.service.get(logoService.original_network_id, logoService.service_id);
                     if (!service) {
@@ -745,11 +813,14 @@ export default class TSFilter extends EventEmitter {
 
                     service.logoId = logo.logo_id;
 
-                    log.debug("TSFilter#_onDSMCC: received logo data (networkId=%d, logoId=%d)", service.networkId, service.logoId);
+                    const logoDataKey = `${service.networkId}:${service.logoId}`;
+                    if (savedLogoDataKeys.has(logoDataKey)) {
+                        continue;
+                    }
+                    savedLogoDataKeys.add(logoDataKey);
 
-                    const logoData = new TsLogo(logo.data_byte).decode(); // png
+                    log.debug("TSFilter#_onDSMCC: received logo data (networkId=%d, logoId=%d)", service.networkId, service.logoId);
                     Service.saveLogoData(service.networkId, service.logoId, logoData);
-                    break;
                 }
             }
         } else if (data.table_id === 0x3B) {
@@ -775,15 +846,16 @@ export default class TSFilter extends EventEmitter {
                     }
                     this._dlDataMap.set(dii.downloadId, {
                         downloadId: dii.downloadId,
-                        // blockSize: dii.blockSize, // 4066
+                        blockSize: dii.blockSize || DSMCC_BLOCK_SIZE,
                         moduleId: module.moduleId,
                         moduleVersion: module.moduleVersion,
                         moduleSize: module.moduleSize,
                         loadedBytes: 0,
+                        receivedBlocks: new Set<number>(),
                         data: Buffer.allocUnsafeSlow(module.moduleSize).fill(0)
                     });
 
-                    log.debug("TSFilter#_onDSMCC: detected DII and buffer allocated for logo data (downloadId=%d, %d bytes)", dii.downloadId, module.moduleSize);
+                    log.info("TSFilter#_onDSMCC: detected DII and buffer allocated for logo data (downloadId=%d, %d bytes)", dii.downloadId, module.moduleSize);
                     break;
                 }
             }
@@ -817,16 +889,19 @@ export default class TSFilter extends EventEmitter {
 
         // target service(s)
         const targetServices: ServiceItem[] = [];
-        if (this._provideServiceId === null) {
-            targetServices.push(..._.service.findByNetworkId(this._targetNetworkId));
-        } else if (this._enableParseCDT) {
-            targetServices.push(_.service.get(this._targetNetworkId, this._provideServiceId));
-        } else if (this._enableParseDSMCC && this._targetNetworkId === 4) {
+        if (this._enableParseDSMCC && this._targetNetworkId === 4) {
             targetServices.push(
                 ..._.service.findByNetworkId(4),
                 ..._.service.findByNetworkId(6),
                 ..._.service.findByNetworkId(7)
             );
+        } else if (this._provideServiceId === null) {
+            targetServices.push(..._.service.findByNetworkId(this._targetNetworkId));
+        } else if (this._enableParseCDT) {
+            const service = _.service.get(this._targetNetworkId, this._provideServiceId);
+            if (service) {
+                targetServices.push(service);
+            }
         }
 
         const logoIdNetworkMap: { [networkId: number]: Set<number> } = {};
@@ -844,13 +919,15 @@ export default class TSFilter extends EventEmitter {
         const logoDataInterval = _.config.server.logoDataInterval || 1000 * 60 * 60 * 24 * 7; // 7 days
 
         for (const networkId in logoIdNetworkMap) {
+            const logoNetworkId = parseInt(networkId, 10);
+
             for (const logoId of logoIdNetworkMap[networkId]) {
                 if (logoId === -1 && logoIdNetworkMap[networkId].size > 1) {
                     continue;
                 }
 
                 // check logoDataInterval
-                if (now - await Service.getLogoDataMTime(this._targetNetworkId, logoId) > logoDataInterval) {
+                if (now - await Service.getLogoDataMTime(logoNetworkId, logoId) > logoDataInterval) {
                     if (this._closed) {
                         return; // break all loops
                     }
@@ -1073,6 +1150,7 @@ export default class TSFilter extends EventEmitter {
 
         // clear streamInfo
         delete this.streamInfo;
+        delete this._continuityStateMap;
 
         --status.streamCount.tsFilter;
 

@@ -82,7 +82,7 @@
 ```yaml
 # 配列
 - name: チューナー識別名 # String
-  types: # (GR|BS|CS|SKY)[]
+  types: # (GR|GR-ALT1..GR-ALT20|BS|CS|SKY)[]
     - GR
     - BS
     - CS
@@ -133,7 +133,7 @@ sudo npm install arib-b25-stream-test -g --unsafe-perm
 ```yaml
 # 配列
 - name: チャンネル識別名 # String
-  type: GR # 列挙型 [GR|BS|CS|SKY]
+  type: GR # 列挙型 [GR|GR-ALT1..GR-ALT20|BS|CS|SKY]
   channel: '0' # String
   # 以下はオプション
   serviceId: 1234 # Integer - 指定しない場合、サービスは自動的にスキャンされます。

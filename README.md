@@ -1,12 +1,59 @@
-npm install
-npm run build
-npm run start.win32
-
 [![Mirakurun](https://gist.githubusercontent.com/kanreisa/0ab27d7771e97edce5a24cc81b9b8ce6/raw/8e08d3d91390794b139ed593e3a834a8b41f651c/logo-mirakurun_2025-03-29.svg)](https://github.com/Chinachu/Mirakurun)
 
 # Mirakurun
 
 A Japanese digital TV tuner API server specifically designed for "Air" (code name of the app in development).
+
+## nyanz00 win32 fork
+
+このブランチは、Mirakurun 4.0.0 系を Windows ネイティブ環境で動作させることを目的としたフォークです。<br>
+現在まだ改修中で、正常な動作は保証していません。<br>
+また、Windows 環境ではある程度動作確認を行っていますが、Linux 上での動作確認は行っていないため、そちらは普通に本家を使用してください。<br>
+このフォークのその他詳細な変更点は [別途ドキュメント](doc/mirakurun-nyanz.md) にまとめているので、そちらをご覧ください。<br>
+
+### 動作環境
+
+- Windows 10 / 11
+- Node.js 18 / 20 / 22
+
+現在 Node.js v18.20.8 でのみ動作確認を行っていますが、20 と 22 でも多分動くと思います。
+
+### インストール
+
+```powershell
+git clone -b win32 https://github.com/nyanz00/Mirakurun.git
+cd Mirakurun
+npm install
+npm run build
+```
+
+設定ファイルは `data\config\` に配置します。何も配置されていない場合、初回起動時に一応テンプレートが自動生成されるようになっています。
+
+- `data\config\server.yml`
+- `data\config\tuners.yml`
+- `data\config\channels.yml`
+
+手動起動の場合は、以下のコマンドで起動してください。
+
+```powershell
+npm start
+```
+
+Windows サービスとして登録する場合は、管理者権限の PowerShell で実行してください。
+
+```powershell
+npm run service:install.win32
+```
+
+登録されるサービス名は `mirakurun-nyanz` です。アンインストールは以下のコマンドで出来ます。
+
+```powershell
+npm run service:uninstall.win32
+```
+
+---
+
+## 以下、本家版のドキュメント
 
 [![npm version][npm-img]][npm-url]
 [![npm downloads][downloads-image]][downloads-url]

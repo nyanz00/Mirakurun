@@ -37,9 +37,11 @@ export const get: Operation = async (req, res) => {
         return;
     }
 
+    const hasLogoData = await Service.isLogoDataExists(serviceItem.networkId, serviceItem.logoId) ||
+        await _.tuner.hasRemoteLogoData(serviceItem);
     const service: apid.Service = {
         ...serviceItem.export(),
-        hasLogoData: await Service.isLogoDataExists(serviceItem.networkId, serviceItem.logoId)
+        hasLogoData
     };
     api.responseJSON(res, service);
 };

@@ -46,7 +46,20 @@ export interface StreamInfo {
     };
 }
 
-export const channelTypes: apid.ChannelType[] = ["GR", "BS", "CS", "SKY"];
+export const grAltChannelTypes: apid.ChannelType[] = Array.from(
+    { length: 20 },
+    (_, i) => `GR-ALT${i + 1}` as apid.ChannelType
+);
+
+export const channelTypes: apid.ChannelType[] = ["GR", ...grAltChannelTypes, "BS", "CS", "SKY"];
+
+export function isGRChannelType(type: apid.ChannelType): boolean {
+    return type === "GR" || grAltChannelTypes.includes(type);
+}
+
+export function getTuningChannelType(type: apid.ChannelType): apid.ChannelType {
+    return isGRChannelType(type) ? "GR" : type;
+}
 
 export const deepClone = rfdc();
 

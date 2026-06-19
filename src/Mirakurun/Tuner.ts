@@ -95,6 +95,29 @@ export class Tuner {
         return false;
     }
 
+    getRemoteDeviceByChannel(channel: ChannelItem): TunerDevice | null {
+        for (const device of this._devices) {
+            if (device.isRemote === true && device.config.types.includes(channel.type) === true) {
+                return device;
+            }
+        }
+
+        return null;
+    }
+
+    async hasRemoteLogoData(service: ServiceItem): Promise<boolean> {
+        if (typeof service.logoId !== "number" || service.logoId < 0) {
+            return false;
+        }
+
+        const device = this.getRemoteDeviceByChannel(service.channel);
+        if (device === null) {
+            return false;
+        }
+
+        return device.hasRemoteLogoData(service.id);
+    }
+
     initChannelStream(channel: ChannelItem, userReq: common.UserRequest, output: Writable): Promise<TSFilter> {
         let networkId: number;
 

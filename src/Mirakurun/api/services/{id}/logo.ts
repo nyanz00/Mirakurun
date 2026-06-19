@@ -16,6 +16,7 @@
 import { Operation } from "express-openapi";
 import _ from "../../../_";
 import Service from "../../../Service";
+import * as log from "../../../log";
 
 export const parameters = [
     {
@@ -48,10 +49,34 @@ export const get: Operation = async (req, res) => {
         res.setHeader("Cache-Control", "public, max-age=86400");
         res.status(200);
         res.end(logoData);
-    } else {
-        res.writeHead(503, "Logo Data Unavailable");
-        res.end();
+        return;
     }
+
+    const remoteDevice = _.tuner.getRemoteDeviceByChannel(service.channel);
+    if (remoteDevice !== null) {
+        try {
+            const remoteLogoData = await remoteDevice.getRemoteLogoImage(service.id);
+            if (remoteLogoData) {
+                await Service.saveLogoData(service.networkId, service.logoId, remoteLogoData).catch(err => {
+                    log.warn("failed to cache remote logo data (serviceId=%d networkId=%d logoId=%d): %s", service.id, service.networkId, service.logoId, err);
+                });
+                res.setHeader("Content-Type", "image/png");
+                res.setHeader("Cache-Control", "public, max-age=86400");
+                res.status(200);
+                res.end(remoteLogoData);
+                return;
+            }
+        } catch (err) {
+            if ((err as any).status === 503) {
+                log.debug("remote logo data is unavailable (serviceId=%d networkId=%d logoId=%d)", service.id, service.networkId, service.logoId);
+            } else {
+                log.warn("failed to fetch remote logo data (serviceId=%d networkId=%d logoId=%d): %s", service.id, service.networkId, service.logoId, err);
+            }
+        }
+    }
+
+    res.writeHead(503, "Logo Data Unavailable");
+    res.end();
 };
 
 get.apiDoc = {

@@ -31,7 +31,9 @@ export const get: Operation = async (req, res) => {
 
         m += `#KODIPROP:mimetype=video/mp2t\n`;
         m += `#EXTINF:-1 tvg-id="${service.id}"`;
-        if (await Service.isLogoDataExists(service.networkId, service.logoId)) {
+        const hasLogoData = await Service.isLogoDataExists(service.networkId, service.logoId) ||
+            await _.tuner.hasRemoteLogoData(service);
+        if (hasLogoData) {
             m += ` tvg-logo="${apiRoot}/services/${service.id}/logo"`;
         }
         m += ` group-title="${service.channel.type}",${service.name}\n`;

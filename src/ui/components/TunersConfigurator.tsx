@@ -90,9 +90,15 @@ const columns: IColumn[] = [
 
 const dummySelection = new Selection(); // dummy
 
-const typesIndex = ["GR", "BS", "CS", "SKY"];
+const grAltChannelTypes = Array.from({ length: 20 }, (_, i) => `GR-ALT${i + 1}` as ChannelType);
+const channelTypeOptions = ["GR" as ChannelType, ...grAltChannelTypes, "BS" as ChannelType, "CS" as ChannelType, "SKY" as ChannelType];
+const typesIndex = channelTypeOptions;
 function sortTypes(types: ChannelType[]): ChannelType[] {
     return types.sort((a, b) => typesIndex.indexOf(a) - typesIndex.indexOf(b));
+}
+
+function getChannelTypeDisplayName(type: ChannelType): string {
+    return type.startsWith("GR-ALT") ? type.replace("GR-", "") : type;
 }
 
 const Configurator: React.FC<{ uiState: UIState, uiStateEvents: EventEmitter }> = ({ uiState, uiStateEvents }) => {
@@ -149,12 +155,7 @@ const Configurator: React.FC<{ uiState: UIState, uiStateEvents: EventEmitter }> 
                 <Dropdown
                     styles={{ root: { display: "inline-block", minWidth: 70 } }}
                     multiSelect
-                    options={[
-                        { key: "GR", text: "GR" },
-                        { key: "BS", text: "BS" },
-                        { key: "CS", text: "CS" },
-                        { key: "SKY", text: "SKY" }
-                    ]}
+                    options={channelTypeOptions.map(type => ({ key: type, text: getChannelTypeDisplayName(type) }))}
                     selectedKeys={tuner.types}
                     onChange={(ev, option) => {
                         if (option.selected === true) {

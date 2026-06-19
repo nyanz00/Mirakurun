@@ -16,6 +16,7 @@
 import { Operation } from "express-openapi";
 import * as api from "../../../api";
 import * as apid from "../../../../../api";
+import * as common from "../../../common";
 import * as config from "../../../config";
 import _ from "../../../_";
 
@@ -67,12 +68,13 @@ const compareOptions: Intl.CollatorOptions = {
 /**
  * Channel type order for sorting
  */
-const channelOrder: Record<apid.ChannelType, number> = {
+const channelOrder: Partial<Record<apid.ChannelType, number>> = {
     GR: 1,
-    BS: 2,
-    CS: 3,
-    SKY: 4
+    BS: 22,
+    CS: 23,
+    SKY: 24
 };
+common.grAltChannelTypes.forEach((type, i) => channelOrder[type] = i + 2);
 
 /**
  * Channel name format templates
@@ -165,11 +167,11 @@ export function generateScanConfig(option: ChannelScanOption): ScanConfig | unde
     Object.keys(option).forEach(key => option[key] === undefined && delete option[key]);
 
     // Handle GR (Ground) channels
-    if (option.type === "GR") {
+    if (common.isGRChannelType(option.type)) {
         // Set GR-specific defaults
         const grOptions = {
-            startCh: 13,
-            endCh: 62,
+            startCh: 0,
+            endCh: 52,
             scanMode: "Channel" as const,
             setDisabledOnAdd: false,
             ...option
@@ -698,7 +700,7 @@ async function runChannelScan(
             if (a.type === b.type) {
                 return a.channel.localeCompare(b.channel, undefined, compareOptions);
             } else {
-                return channelOrder[a.type] - channelOrder[b.type];
+                return (channelOrder[a.type] ?? 999) - (channelOrder[b.type] ?? 999);
             }
         });
 
@@ -926,7 +928,7 @@ About BS Subchannel Style:
             in: "query",
             name: "type",
             type: "string",
-            enum: ["GR", "BS", "CS"] as apid.ChannelType[],
+            enum: ["GR", ...common.grAltChannelTypes, "BS", "CS"] as apid.ChannelType[],
             default: "GR",
             description: "Specifies the channel type to scan."
         },

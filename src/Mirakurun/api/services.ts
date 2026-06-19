@@ -28,9 +28,11 @@ export const get: Operation = async (req, res) => {
     const services: apid.Service[] = [];
 
     for (const serviceItem of serviceItems.filter(sift(req.query))) {
+        const hasLogoData = await Service.isLogoDataExists(serviceItem.networkId, serviceItem.logoId) ||
+            await _.tuner.hasRemoteLogoData(serviceItem);
         services.push({
             ...serviceItem.export(),
-            hasLogoData: await Service.isLogoDataExists(serviceItem.networkId, serviceItem.logoId)
+            hasLogoData
         });
     }
 

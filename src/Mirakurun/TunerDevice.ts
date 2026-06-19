@@ -46,10 +46,13 @@ export interface TunerDeviceStatus {
 }
 
 export default class TunerDevice extends EventEmitter {
+    private static readonly REMOTE_SERVICES_CACHE_TTL = 1000 * 60;
+
     private _channel: ChannelItem = null;
     private _command: string = null;
     private _process: child_process.ChildProcess = null;
     private _stream: stream.Readable = null;
+    private _remoteServicesCache: { fetchedAt: number; services: apid.Service[] } = null;
 
     private _users = new Set<User>();
 
@@ -238,6 +241,56 @@ export default class TunerDevice extends EventEmitter {
         return programs;
     }
 
+    async getRemoteLogoImage(serviceId: apid.ServiceItemId): Promise<Buffer> {
+        if (!this._isRemote) {
+            throw new Error(util.format("TunerDevice#%d is not remote device", this._index));
+        }
+
+        const client = new Client();
+        client.host = this.config.remoteMirakurunHost;
+        client.port = this.config.remoteMirakurunPort || 40772;
+        client.userAgent = "Mirakurun (Remote)";
+
+        log.debug("TunerDevice#%d fetching remote logo image from %s:%d... (serviceId=%d)", this._index, client.host, client.port, serviceId);
+
+        return client.getLogoImage(serviceId);
+    }
+
+    async hasRemoteLogoData(serviceId: apid.ServiceItemId): Promise<boolean> {
+        const services = await this.getRemoteServices();
+        const service = services.find(item => item.id === serviceId);
+
+        return service?.hasLogoData === true;
+    }
+
+    async getRemoteServices(): Promise<apid.Service[]> {
+        if (!this._isRemote) {
+            throw new Error(util.format("TunerDevice#%d is not remote device", this._index));
+        }
+
+        const now = Date.now();
+        if (this._remoteServicesCache !== null && now - this._remoteServicesCache.fetchedAt < TunerDevice.REMOTE_SERVICES_CACHE_TTL) {
+            return this._remoteServicesCache.services;
+        }
+
+        const client = new Client();
+        client.host = this.config.remoteMirakurunHost;
+        client.port = this.config.remoteMirakurunPort || 40772;
+        client.userAgent = "Mirakurun (Remote)";
+
+        try {
+            const services = await client.getServices();
+            this._remoteServicesCache = { fetchedAt: now, services };
+
+            return services;
+        } catch (err) {
+            log.warn("TunerDevice#%d failed to fetch remote services from %s:%d: %s", this._index, client.host, client.port, err);
+            this._remoteServicesCache = { fetchedAt: now, services: [] };
+
+            return [];
+        }
+    }
+
     private _spawn(ch: ChannelItem): void {
         log.debug("TunerDevice#%d spawn...", this._index);
 
@@ -251,7 +304,7 @@ export default class TunerDevice extends EventEmitter {
             cmd = "node lib/remote";
             cmd += " " + this._config.remoteMirakurunHost;
             cmd += " " + (this._config.remoteMirakurunPort || 40772);
-            cmd += " " + ch.type;
+            cmd += " " + common.getTuningChannelType(ch.type);
             cmd += " " + ch.channel;
             if (this._config.remoteMirakurunDecoder === true) {
                 cmd += " decode";
@@ -262,7 +315,8 @@ export default class TunerDevice extends EventEmitter {
 
         cmd = common.replaceCommandTemplate(cmd, {
             channel: ch.channel,
-            type: ch.type,
+            type: common.getTuningChannelType(ch.type),
+            channelType: ch.type,
             satelite: ch.commandVars?.satellite || "", // deprecated, for backward compatibility
             space: 0, // default value for backward compatibility
             ...ch.commandVars

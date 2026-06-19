@@ -39,7 +39,7 @@ import {
     MessageBarType
 } from "@fluentui/react";
 import { UIState } from "../index";
-import { ConfigChannels, ChannelType } from "../../../api";
+import { ConfigChannels, ChannelType, TunerDevice } from "../../../api";
 
 const configAPI = "/api/config/channels";
 
@@ -100,9 +100,20 @@ const columns: IColumn[] = [
 
 const dummySelection = new Selection(); // dummy
 
-const typesIndex = ["GR", "BS", "CS", "SKY"];
+const grAltChannelTypes = Array.from({ length: 20 }, (_, i) => `GR-ALT${i + 1}` as ChannelType);
+const channelTypeOptions = ["GR" as ChannelType, ...grAltChannelTypes, "BS" as ChannelType, "CS" as ChannelType, "SKY" as ChannelType];
+const defaultScanChannelTypeOptions = ["GR" as ChannelType, "BS" as ChannelType, "CS" as ChannelType];
+const typesIndex = channelTypeOptions;
 function sortTypes(types: ChannelType[]): ChannelType[] {
     return types.sort((a, b) => typesIndex.indexOf(a) - typesIndex.indexOf(b));
+}
+
+function getChannelTypeDisplayName(type: ChannelType): string {
+    return type.startsWith("GR-ALT") ? type.replace("GR-", "") : type;
+}
+
+function isScanChannelType(type: ChannelType): boolean {
+    return type === "GR" || type.startsWith("GR-ALT") || type === "BS" || type === "CS";
 }
 
 interface ChannelScanStatus {
@@ -127,8 +138,9 @@ const Configurator: React.FC<{ uiState: UIState, uiStateEvents: EventEmitter }> 
     const [saved, setSaved] = useState<boolean>(false);
     const [showScanDialog, setShowScanDialog] = useState<boolean>(false);
     const [scanType, setScanType] = useState<ChannelType>("GR");
-    const [scanMinCh, setScanMinCh] = useState<string>("13"); // GRのデフォルト値
-    const [scanMaxCh, setScanMaxCh] = useState<string>("62"); // GRのデフォルト値
+    const [scanChannelTypeOptions, setScanChannelTypeOptions] = useState<ChannelType[]>(defaultScanChannelTypeOptions);
+    const [scanMinCh, setScanMinCh] = useState<string>("0"); // GRのデフォルト値
+    const [scanMaxCh, setScanMaxCh] = useState<string>("52"); // GRのデフォルト値
     const [scanSkipCh, setScanSkipCh] = useState<string>(""); // スキップするチャンネル
     const [scanMinSubCh, setScanMinSubCh] = useState<string>("0");
     const [scanMaxSubCh, setScanMaxSubCh] = useState<string>("3");
@@ -285,6 +297,17 @@ const Configurator: React.FC<{ uiState: UIState, uiStateEvents: EventEmitter }> 
                 console.log("ChannelsConfigurator", "GET", configAPI, "->", res);
                 setEditing(JSON.parse(JSON.stringify(res)));
                 setCurrent(JSON.parse(JSON.stringify(res)));
+
+                const tuners: TunerDevice[] = await (await fetch("/api/tuners")).json();
+                console.log("ChannelsConfigurator", "GET", "/api/tuners", "->", tuners);
+                const availableScanTypes = sortTypes(
+                    Array.from(new Set(tuners.flatMap(tuner => tuner.types).filter(isScanChannelType)))
+                );
+                const scanTypes = availableScanTypes.length > 0 ? availableScanTypes : defaultScanChannelTypeOptions;
+                setScanChannelTypeOptions(scanTypes);
+                if (scanTypes.includes(scanType) === false) {
+                    setScanType(scanTypes[0]);
+                }
             } catch (e) {
                 console.error(e);
             }
@@ -349,12 +372,7 @@ const Configurator: React.FC<{ uiState: UIState, uiStateEvents: EventEmitter }> 
             type: (
                 <Dropdown
                     label="Type"
-                    options={[
-                        { key: "GR", text: "GR" },
-                        { key: "BS", text: "BS" },
-                        { key: "CS", text: "CS" },
-                        { key: "SKY", text: "SKY" }
-                    ]}
+                    options={channelTypeOptions.map(type => ({ key: type, text: getChannelTypeDisplayName(type) }))}
                     selectedKey={ch.type}
                     onChange={(ev, option) => {
                         ch.type = option.key as any;
@@ -761,27 +779,23 @@ const Configurator: React.FC<{ uiState: UIState, uiStateEvents: EventEmitter }> 
                 <Stack tokens={{ childrenGap: "12 0" }}>
                     <Dropdown
                         label="Channel Type"
-                        options={[
-                            { key: "GR", text: "GR" },
-                            { key: "BS", text: "BS" },
-                            { key: "CS", text: "CS" }
-                        ]}
+                        options={scanChannelTypeOptions.map(type => ({ key: type, text: getChannelTypeDisplayName(type) }))}
                         selectedKey={scanType}
                         onChange={(ev, option) => {
                             const newType = option.key as ChannelType;
                             setScanType(newType);
 
                             // チャンネルタイプに応じてデフォルト値を設定
-                            switch (newType) {
-                                case "GR":
-                                    setScanMinCh("13");
-                                    setScanMaxCh("62");
+                            switch (true) {
+                                case newType === "GR" || newType.startsWith("GR-ALT"):
+                                    setScanMinCh("0");
+                                    setScanMaxCh("52");
                                     break;
-                                case "BS":
+                                case newType === "BS":
                                     setScanMinCh("1");
                                     setScanMaxCh("23");
                                     break;
-                                case "CS":
+                                case newType === "CS":
                                     setScanMinCh("2");
                                     setScanMaxCh("24");
                                     break;

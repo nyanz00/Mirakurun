@@ -18,6 +18,8 @@ Buffer.poolSize = 0; // disable memory pool
 require("dotenv").config();
 import { execSync } from "child_process";
 import { createHash } from "crypto";
+import { createWriteStream, existsSync, mkdirSync, statSync } from "fs";
+import { join, resolve } from "path";
 
 const isWindows = process.platform === "win32";
 const isRoot = typeof process.getuid === "function" && process.getuid() === 0;
@@ -51,12 +53,80 @@ process.on("unhandledRejection", err => {
 function setEnv(name: string, value: string) {
     process.env[name] = process.env[name] || value;
 }
-setEnv("SERVER_CONFIG_PATH", "/usr/local/etc/mirakurun/server.yml");
-setEnv("TUNERS_CONFIG_PATH", "/usr/local/etc/mirakurun/tuners.yml");
-setEnv("CHANNELS_CONFIG_PATH", "/usr/local/etc/mirakurun/channels.yml");
-setEnv("SERVICES_DB_PATH", "/usr/local/var/db/mirakurun/services.json");
-setEnv("PROGRAMS_DB_PATH", "/usr/local/var/db/mirakurun/programs.json");
-setEnv("LOGO_DATA_DIR_PATH", "/usr/local/var/db/mirakurun/logo-data");
+
+function setWindowsPortableEnv(): void {
+    const rootDir = resolve(__dirname, "..");
+    const configDir = join(rootDir, "data", "config");
+    const dataDir = join(rootDir, "data", "db");
+
+    ensureWindowsPortableData(configDir, dataDir);
+
+    setEnv("SERVER_CONFIG_PATH", join(configDir, "server.yml"));
+    setEnv("TUNERS_CONFIG_PATH", join(configDir, "tuners.yml"));
+    setEnv("CHANNELS_CONFIG_PATH", join(configDir, "channels.yml"));
+    setEnv("SERVICES_DB_PATH", join(dataDir, "services.json"));
+    setEnv("PROGRAMS_DB_PATH", join(dataDir, "programs.json"));
+    setEnv("LOGO_DATA_DIR_PATH", join(dataDir, "logo-data"));
+    setEnv("MIRAKURUN_PLATFORM", "win32");
+
+    setupCliLogFiles(dataDir);
+}
+
+function ensureWindowsPortableData(configDir: string, dataDir: string): void {
+    ensureDirectory(configDir, "config");
+    ensureDirectory(dataDir, "db");
+}
+
+function ensureDirectory(path: string, name: string): void {
+    if (existsSync(path) === true) {
+        if (statSync(path).isDirectory() === false) {
+            console.error(`Windows portable ${name} path exists but is not a directory: ${path}`);
+            process.exit(1);
+        }
+        return;
+    }
+
+    mkdirSync(path, { recursive: true });
+}
+
+function setupCliLogFiles(dataDir: string): void {
+    if (process.env.USING_WINSER === "1" || process.env.MIRAKURUN_CLI_LOG === "0") {
+        return;
+    }
+
+    if (existsSync(dataDir) === false) {
+        mkdirSync(dataDir, { recursive: true });
+    }
+
+    const stdout = createWriteStream(join(dataDir, "stdout.log"), { flags: "a" });
+    const stderr = createWriteStream(join(dataDir, "stderr.log"), { flags: "a" });
+    const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+    const originalStderrWrite = process.stderr.write.bind(process.stderr);
+
+    stdout.on("error", () => undefined);
+    stderr.on("error", () => undefined);
+
+    process.stdout.write = ((chunk: any, encoding?: any, callback?: any) => {
+        stdout.write(chunk, encoding);
+        return originalStdoutWrite(chunk, encoding, callback);
+    }) as typeof process.stdout.write;
+
+    process.stderr.write = ((chunk: any, encoding?: any, callback?: any) => {
+        stderr.write(chunk, encoding);
+        return originalStderrWrite(chunk, encoding, callback);
+    }) as typeof process.stderr.write;
+}
+
+if (isWindows) {
+    setWindowsPortableEnv();
+} else {
+    setEnv("SERVER_CONFIG_PATH", "/usr/local/etc/mirakurun/server.yml");
+    setEnv("TUNERS_CONFIG_PATH", "/usr/local/etc/mirakurun/tuners.yml");
+    setEnv("CHANNELS_CONFIG_PATH", "/usr/local/etc/mirakurun/channels.yml");
+    setEnv("SERVICES_DB_PATH", "/usr/local/var/db/mirakurun/services.json");
+    setEnv("PROGRAMS_DB_PATH", "/usr/local/var/db/mirakurun/programs.json");
+    setEnv("LOGO_DATA_DIR_PATH", "/usr/local/var/db/mirakurun/logo-data");
+}
 
 import _ from "./Mirakurun/_";
 import status from "./Mirakurun/status";

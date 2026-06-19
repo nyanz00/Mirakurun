@@ -163,7 +163,7 @@ export default class ServiceItem {
     getOrder(): number {
         let order: string;
 
-        switch (this._channel.type) {
+        switch (common.getTuningChannelType(this._channel.type)) {
             case "GR":
                 order = "1";
                 break;

@@ -4,12 +4,25 @@ const assert = require("assert");
 const scan = require("../lib/Mirakurun/api/config/channels/scan");
 
 describe("[scan.spec] /api/config/channel/scan : generateScanConfig", () => {
+    const grDefaultChannels = Array.from({ length: 53 }, (_, i) => String(i));
+
     it("GR: Type only", () => {
         const config = scan.generateScanConfig({
             type: "GR"
         });
         assert.deepStrictEqual(config, {
-            channels: ["13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62"],
+            channels: grDefaultChannels,
+            scanMode: "Channel",
+            setDisabledOnAdd: false
+        });
+    });
+
+    it("GR-ALT1: Type only", () => {
+        const config = scan.generateScanConfig({
+            type: "GR-ALT1"
+        });
+        assert.deepStrictEqual(config, {
+            channels: grDefaultChannels,
             scanMode: "Channel",
             setDisabledOnAdd: false
         });
@@ -18,10 +31,10 @@ describe("[scan.spec] /api/config/channel/scan : generateScanConfig", () => {
     it("GR: startCh only", () => {
         const config = scan.generateScanConfig({
             type: "GR",
-            startCh: 61
+            startCh: 51
         });
         assert.deepStrictEqual(config, {
-            channels: ["61", "62"],
+            channels: ["51", "52"],
             scanMode: "Channel",
             setDisabledOnAdd: false
         });
@@ -30,10 +43,10 @@ describe("[scan.spec] /api/config/channel/scan : generateScanConfig", () => {
     it("GR: endCh only", () => {
         const config = scan.generateScanConfig({
             type: "GR",
-            endCh: 14
+            endCh: 2
         });
         assert.deepStrictEqual(config, {
-            channels: ["13", "14"],
+            channels: ["0", "1", "2"],
             scanMode: "Channel",
             setDisabledOnAdd: false
         });
@@ -59,7 +72,7 @@ describe("[scan.spec] /api/config/channel/scan : generateScanConfig", () => {
             endSubCh: 10
         });
         assert.deepStrictEqual(config, {
-            channels: ["13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62"],
+            channels: grDefaultChannels,
             scanMode: "Channel",
             setDisabledOnAdd: false
         });
@@ -71,7 +84,7 @@ describe("[scan.spec] /api/config/channel/scan : generateScanConfig", () => {
             useSubCh: false
         });
         assert.deepStrictEqual(config, {
-            channels: ["13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62"],
+            channels: grDefaultChannels,
             scanMode: "Channel",
             setDisabledOnAdd: false
         });
@@ -85,7 +98,7 @@ describe("[scan.spec] /api/config/channel/scan : generateScanConfig", () => {
             endSubCh: 10
         });
         assert.deepStrictEqual(config, {
-            channels: ["13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62"],
+            channels: grDefaultChannels,
             scanMode: "Channel",
             setDisabledOnAdd: false
         });
@@ -97,7 +110,7 @@ describe("[scan.spec] /api/config/channel/scan : generateScanConfig", () => {
             useSubCh: true
         });
         assert.deepStrictEqual(config, {
-            channels: ["13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62"],
+            channels: grDefaultChannels,
             scanMode: "Channel",
             setDisabledOnAdd: false
         });
@@ -111,7 +124,7 @@ describe("[scan.spec] /api/config/channel/scan : generateScanConfig", () => {
             endSubCh: 10
         });
         assert.deepStrictEqual(config, {
-            channels: ["13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62"],
+            channels: grDefaultChannels,
             scanMode: "Channel",
             setDisabledOnAdd: false
         });
@@ -123,7 +136,7 @@ describe("[scan.spec] /api/config/channel/scan : generateScanConfig", () => {
             scanMode: "Channel"
         });
         assert.deepStrictEqual(config, {
-            channels: ["13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62"],
+            channels: grDefaultChannels,
             scanMode: "Channel",
             setDisabledOnAdd: false
         });
@@ -135,7 +148,7 @@ describe("[scan.spec] /api/config/channel/scan : generateScanConfig", () => {
             scanMode: "Service"
         });
         assert.deepStrictEqual(config, {
-            channels: ["13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62"],
+            channels: grDefaultChannels,
             scanMode: "Service",
             setDisabledOnAdd: false
         });
@@ -147,7 +160,7 @@ describe("[scan.spec] /api/config/channel/scan : generateScanConfig", () => {
             setDisabledOnAdd: true
         });
         assert.deepStrictEqual(config, {
-            channels: ["13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62"],
+            channels: grDefaultChannels,
             scanMode: "Channel",
             setDisabledOnAdd: true
         });
@@ -159,12 +172,11 @@ describe("[scan.spec] /api/config/channel/scan : generateScanConfig", () => {
             setDisabledOnAdd: false
         });
         assert.deepStrictEqual(config, {
-            channels: ["13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60", "61", "62"],
+            channels: grDefaultChannels,
             scanMode: "Channel",
             setDisabledOnAdd: false
         });
     });
-
     it("BS: Type only", () => {
         const config = scan.generateScanConfig({
             type: "BS"

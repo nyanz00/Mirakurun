@@ -35,8 +35,10 @@
   },
   "main": "lib/client.js",
   "scripts": {
-    "start": "node --max-semi-space-size=64 -r source-map-support/register lib/server.js ",
-    "debug": "node --max-semi-space-size=64 -r source-map-support/register --inspect=0.0.0.0:9229 lib/server.js",
+    "start": "node.exe --max-semi-space-size=64 -r source-map-support/register bin/init.win32.js",
+    "start.unix": "node --max-semi-space-size=64 -r source-map-support/register lib/server.js ",
+    "debug": "node.exe --max-semi-space-size=64 -r source-map-support/register --inspect bin/init.win32.js",
+    "debug.unix": "node --max-semi-space-size=64 -r source-map-support/register --inspect=0.0.0.0:9229 lib/server.js",
     "start.win32": "node.exe --max-semi-space-size=64 -r source-map-support/register bin/init.win32.js",
     "debug.win32": "node.exe --max-semi-space-size=64 -r source-map-support/register --inspect bin/init.win32.js",
     "service:install.win32": "node bin/service.win32.js install",

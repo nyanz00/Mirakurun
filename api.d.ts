@@ -45,7 +45,7 @@ export interface Channel {
     services?: Service[];
 }
 
-export type ChannelType = "GR" | "BS" | "CS" | "SKY";
+export type ChannelType = "GR" | "GR-ALT1" | "GR-ALT2" | "GR-ALT3" | "GR-ALT4" | "GR-ALT5" | "GR-ALT6" | "GR-ALT7" | "GR-ALT8" | "GR-ALT9" | "GR-ALT10" | "GR-ALT11" | "GR-ALT12" | "GR-ALT13" | "GR-ALT14" | "GR-ALT15" | "GR-ALT16" | "GR-ALT17" | "GR-ALT18" | "GR-ALT19" | "GR-ALT20" | "BS" | "CS" | "SKY";
 
 export interface Service {
     id: ServiceItemId;

@@ -24,6 +24,9 @@ const childProcess = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
+const serviceName = "mirakurun-nyanz";
+const serviceDisplayName = "mirakurun-nyanz";
+
 const action = process.argv[2];
 
 if (action !== "install" && action !== "uninstall") {
@@ -32,7 +35,7 @@ if (action !== "install" && action !== "uninstall") {
 }
 
 if (action === "uninstall") {
-    childProcess.execFileSync("winser.cmd", ["-r", "-x", "-s"], {
+    childProcess.execFileSync("winser.cmd", ["-r", "-x", "-s", "--name", serviceName], {
         stdio: [null, process.stdout, process.stderr]
     });
     process.exit(0);
@@ -49,7 +52,7 @@ const stderrLogPath = path.join(logDir, "stderr.log");
 childProcess.execFileSync(
     "winser.cmd",
     [
-        "-i", "-a", "--startuptype", "auto",
+        "-i", "-a", "--name", serviceName, "--displayname", serviceDisplayName, "--startuptype", "auto",
         "--startcmd", "node.exe --max-semi-space-size=64 -r source-map-support/register bin\\init.win32.js",
         "--set", "AppPriority ABOVE_NORMAL_PRIORITY_CLASS",
         "--set", "Type SERVICE_WIN32_OWN_PROCESS",

@@ -82,32 +82,18 @@ async function load(path: string, integrity: string, sync = false): Promise<any[
     });
 }
 
-async function save(path: string, data: any[], integrity: string, retrying = false): Promise<void> {
+async function save(path: string, data: any[], integrity: string): Promise<void> {
     log.info("save db `%s` w/ integrity (%s)", path, integrity);
 
-    if (retrying === false) {
-        data.unshift({ __integrity__: integrity });
-    }
+    const writeData = [{ __integrity__: integrity }, ...data];
 
     return dbIOQueue.add(async () => {
-        try {
-            await writeFile(path, JSON.stringify(data));
-        } catch (e) {
-            if (retrying === false) {
-                // mkdir if not exists
-                const dirPath = dirname(path);
-                if (existsSync(dirPath) === false) {
-                    try {
-                        await mkdir(dirPath, { recursive: true });
-                    } catch (e) {
-                        throw e;
-                    }
-                }
-                // retry
-                await save(path, data, integrity, true);
-            }
-            throw e;
+        const dirPath = dirname(path);
+        if (existsSync(dirPath) === false) {
+            await mkdir(dirPath, { recursive: true });
         }
+
+        await writeFile(path, JSON.stringify(writeData));
     });
 }
 
