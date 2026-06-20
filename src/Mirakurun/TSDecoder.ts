@@ -26,6 +26,8 @@ interface StreamOptions extends stream.TransformOptions {
 let idCounter = 0;
 
 export default class TSDecoder extends stream.Writable {
+    private static readonly PROCESSING_LOG_PATTERN = /^processing:\s+-?\d+(?:\.\d+)?\s+MB\/sec$/;
+
     // output
     private _output: stream.Writable;
 
@@ -107,7 +109,7 @@ export default class TSDecoder extends stream.Writable {
             this._dead();
         });
 
-        proc.stderr.pipe(process.stderr);
+        proc.stderr.on("data", chunk => this._handleStderr(chunk));
         proc.stdout.once("data", () => clearTimeout(this._timeout));
         proc.stdout.on("data", chunk => this._output.write(chunk));
 
@@ -117,6 +119,29 @@ export default class TSDecoder extends stream.Writable {
         this._isNew = true;
 
         log.info("TSDecoder#%d process has spawned by command `%s` (pid=%d)", this._id, this._command, proc.pid);
+    }
+
+    private _handleStderr(chunk: Buffer): void {
+        const text = chunk.toString();
+        const lines = text.match(/[^\r\n]*(?:\r\n|\r|\n|$)/g) || [];
+        let passthrough = "";
+
+        for (const line of lines) {
+            if (line.length === 0) {
+                continue;
+            }
+
+            const trimmed = line.trim();
+            if (TSDecoder.PROCESSING_LOG_PATTERN.test(trimmed)) {
+                log.debug("TSDecoder#%d > %s", this._id, trimmed);
+            } else {
+                passthrough += line;
+            }
+        }
+
+        if (passthrough.length > 0) {
+            process.stderr.write(passthrough);
+        }
     }
 
     private _dead(): void {
