@@ -29,9 +29,16 @@ import { WatchButton } from "../components/WatchButton";
 import { EPGTable } from "../components/EPGTable";
 
 const grAltChannelTypes = Array.from({ length: 20 }, (_, i) => `GR-ALT${i + 1}` as ChannelType);
+const channelTypeOptions = ["GR" as ChannelType, ...grAltChannelTypes, "BS" as ChannelType, "CS" as ChannelType, "SKY" as ChannelType];
+const defaultChannelTypeOptions = ["GR" as ChannelType, "BS" as ChannelType, "CS" as ChannelType, "SKY" as ChannelType];
 
 function getChannelTypeDisplayName(type: ChannelType): string {
     return type.startsWith("GR-ALT") ? type.replace("GR-", "") : type;
+}
+
+function getAvailableChannelTypes(): ChannelType[] {
+    const availableTypes = Array.from(new Set(state.tuners.flatMap(tuner => tuner.types)));
+    return channelTypeOptions.filter(type => availableTypes.includes(type));
 }
 
 export const EPGView: React.FC = () => {
@@ -43,6 +50,8 @@ export const EPGView: React.FC = () => {
     const [channelType, setChannelType] = useLocalStorageState<ChannelType>("EPG.channelType", "GR");
     const [programId, setProgramId] = useState<number>(null);
     const [time, setTime] = useState<number>(null);
+    const [availableChannelTypes, setAvailableChannelTypes] = useState<ChannelType[]>(getAvailableChannelTypes);
+    const visibleChannelTypes = availableChannelTypes.length > 0 ? availableChannelTypes : defaultChannelTypeOptions;
     const globalServiceId = parseInt(params.globalServiceId, 10) || null;
     const programIdQuery = searchParams.get("programId");
     const typeQuery = searchParams.get("type");
@@ -54,6 +63,31 @@ export const EPGView: React.FC = () => {
     const endDate = startDate.plus({ days: 7 });
 
     let date = DateTime.fromISO(isoDate);
+
+    useEffect(() => {
+        const onTuners = () => setAvailableChannelTypes(getAvailableChannelTypes());
+
+        onTuners();
+        state.on("tuners", onTuners);
+
+        return () => {
+            state.off("tuners", onTuners);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (globalServiceId || channelType === null || availableChannelTypes.length === 0 || availableChannelTypes.includes(channelType)) {
+            return;
+        }
+
+        const fallbackType = availableChannelTypes[0] || "GR";
+        setChannelType(fallbackType);
+        let to = `/epg?type=${fallbackType}`;
+        if (isoDate) {
+            to += `&date=${isoDate}`;
+        }
+        setTimeout(() => navigate(to, { replace: true }), 0);
+    }, [availableChannelTypes, channelType, globalServiceId, isoDate]);
 
     if (globalServiceId) {
         date = date.set({ day: now.day });
@@ -168,12 +202,8 @@ export const EPGView: React.FC = () => {
                             <HTMLSelect
                                 className="bp5-outlined"
                                 options={[
-                                    { value: "ALL", label: "全波" },
-                                    { value: "GR", label: "地上" },
-                                    ...grAltChannelTypes.map(type => ({ value: type, label: getChannelTypeDisplayName(type) })),
-                                    { value: "BS" },
-                                    { value: "CS" },
-                                    { value: "SKY" },
+                                    { value: "ALL", label: "\u5168\u6ce2" },
+                                    ...visibleChannelTypes.map(type => ({ value: type, label: getChannelTypeDisplayName(type) })),
                                 ]}
                                 value={channelType || "ALL"}
                                 onChange={event => {
