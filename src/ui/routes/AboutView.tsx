@@ -14,11 +14,12 @@
    limitations under the License.
 */
 import * as React from "react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Alignment, Breadcrumbs, Button, Card, Divider, Elevation, H3, H5, Navbar, Text } from "@blueprintjs/core";
 import { state } from "../modules/state";
 import * as ui from "../modules/ui";
 import { VersionStatus } from "../components/VersionStatus";
+import { forkRepositoryUrl, forkVersion } from "../modules/constants";
 
 import "./AboutView.sass";
 
@@ -26,17 +27,6 @@ export const AboutView: React.FC = () => {
     console.debug("routes", "AboutView");
 
     ui.setTitle("Mirakurun について");
-
-    const [version, setVersion] = useState<string>(state.version);
-    useEffect(() => {
-        const onVersion = () => {
-            setVersion(state.version);
-        };
-        state.on("version", onVersion);
-        return () => {
-            state.off("version", onVersion);
-        };
-    }, []);
 
     const [consented, setConsented] = useState<boolean>(false);
 
@@ -73,7 +63,7 @@ export const AboutView: React.FC = () => {
                                 <tbody>
                                     <tr>
                                         <td>Current</td>
-                                        <td>{version}</td>
+                                        <td>{forkVersion}</td>
                                     </tr>
                                     <tr>
                                         <td>Latest</td>
@@ -101,7 +91,7 @@ export const AboutView: React.FC = () => {
                             <Button
                                 icon="git-branch"
                                 text="GitHub Repository"
-                                onClick={() => window.open("https://github.com/Chinachu/Mirakurun", "_blank")}
+                                onClick={() => window.open(forkRepositoryUrl, "_blank")}
                                 variant="minimal"
                             />
                             <Button

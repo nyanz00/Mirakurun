@@ -20,6 +20,7 @@ import { state } from "../modules/state";
 import { useLocalStorageState } from "../hooks/useWebStorageState";
 import { VersionStatus } from "./VersionStatus";
 import { Restart } from "./Restart";
+import nyanzLogo from "../nyanz-smile.png";
 
 import "./Nav.sass";
 
@@ -101,6 +102,7 @@ export const Nav: React.FC<NavProps> = ({ pathLv1 }) => {
                     Mirakurun
                     <sup className="version">{version}</sup>
                 </Navbar.Heading>
+                <img className="nyanz-logo" src={nyanzLogo} alt="" aria-hidden="true" />
                 <div className="bp5-input-group">
                     <span className="bp5-icon bp5-icon-search"></span>
                     <input
