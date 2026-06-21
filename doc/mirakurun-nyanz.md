@@ -19,11 +19,12 @@
 - Web UI の channel scan では、存在するチューナータイプだけを選択肢に表示
 - Web UI の tuner status に表示される dropped pkts を TS continuity counter ベースで数えるように調整
 - BS/CS の局ロゴ取得で DSM-CC の重複ブロックを二重カウントしないように調整
+- web UIのEPGの局タイプを存在するチューナータイプのみ表示されるように変更
 - 随時本家版の変更に追従
 
 ## インストール
 
-Node.js 18 / 20 / 22 のいずれかを入れた Windows 環境で実行してください。
+Node.js 22 / 24 のいずれかを入れた Windows 環境で実行してください。
 
 ```powershell
 git clone -b win32 https://github.com/nyanz00/Mirakurun.git
@@ -112,4 +113,3 @@ http://<server-ip>:40772/
 - Linux / Docker での動作は確認していないため、その環境での動作は保証していません。
 - フォーク作成者本人は特にプログラミングの知識は無く、Codex を使用して移植しているため、有識者から見たらおかしいコード、非効率的な部分がある可能性があります。その場合は指摘していただけるとありがたいです。
 - `GR-ALT*` 対応版の EPGStation は近日中に公開予定です。
-- 4.1.2 への対応も近日中に行う予定です。これを作成し始めたら本家がアップデートされたので現状は 4.0.0-beta18 ベースです...

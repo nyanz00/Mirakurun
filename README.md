@@ -4,7 +4,7 @@
 
 A Japanese digital TV tuner API server specifically designed for "Air" (code name of the app in development).
 
-## nyanz00 win32 fork
+## Mirakurun-nyanz
 
 このブランチは、Mirakurun 4.0.0 系を Windows ネイティブ環境で動作させることを目的としたフォークです。<br>
 現在まだ改修中で、正常な動作は保証していません。<br>
@@ -14,9 +14,9 @@ A Japanese digital TV tuner API server specifically designed for "Air" (code nam
 ### 動作環境
 
 - Windows 10 / 11
-- Node.js 18 / 20 / 22
+- Node.js 22 / 24
 
-現在 Node.js v18.20.8 でのみ動作確認を行っていますが、20 と 22 でも多分動くと思います。
+現在 Node.js v22.23.0 でのみ動作確認を行っていますが、24 でも多分動くと思います。
 
 ### インストール
 
