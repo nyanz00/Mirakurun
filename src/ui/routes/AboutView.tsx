@@ -20,6 +20,7 @@ import { state } from "../modules/state";
 import * as ui from "../modules/ui";
 import { VersionStatus } from "../components/VersionStatus";
 import { forkRepositoryUrl, forkVersion } from "../modules/constants";
+import nyanzLogo from "../nyanz-smile.png";
 
 import "./AboutView.sass";
 
@@ -54,6 +55,7 @@ export const AboutView: React.FC = () => {
                         <div className="about-header">
                             <img className="product-icon" src={state.statusIconSrc} alt={state.statusName} />
                             <H3>Mirakurun</H3>
+                            <img className="about-nyanz-logo" src={nyanzLogo} alt="" aria-hidden="true" />
                         </div>
 
                         <Divider />

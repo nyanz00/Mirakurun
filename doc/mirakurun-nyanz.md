@@ -99,6 +99,13 @@ npm run service:install.win32
 npm run service:uninstall.win32
 ```
 
+サービス起動時の標準出力と標準エラーも、コマンドライン起動時と同じく以下へ保存されます。
+
+- `data\log\stdout.log`
+- `data\log\stderr.log`
+
+`services.json` や `programs.json` などのDB系ファイルは `data\db\` に保存されます。
+
 ## Web UI
 
 起動後、通常の Mirakurun と同じく以下へアクセスします。

@@ -51,6 +51,17 @@ npm run service:install.win32
 npm run service:uninstall.win32
 ```
 
+サービス起動時の標準出力と標準エラーは以下へ保存されます。
+
+- `data\log\stdout.log`
+- `data\log\stderr.log`
+
+サービス・番組表・局ロゴのデータは以下へ保存されます。
+
+- `data\db\services.json`
+- `data\db\programs.json`
+- `data\db\logo-data\`
+
 ---
 
 ## 以下、本家版のドキュメント

@@ -17,12 +17,21 @@ import { Operation } from "express-openapi";
 import * as api from "../api";
 import * as apid from "../../../api";
 import { getLatestVersion } from "../system";
+import * as log from "../log";
 const pkg = require("../../../package.json");
 
 export const get: Operation = async (req, res) => {
+    let latest = pkg.version;
+
+    try {
+        latest = await getLatestVersion();
+    } catch (e) {
+        log.warn("failed to fetch latest Mirakurun version: %s", e);
+    }
+
     const version: apid.Version = {
         current: pkg.version,
-        latest: await getLatestVersion()
+        latest
     };
 
     api.responseJSON(res, version);

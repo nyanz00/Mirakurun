@@ -14,15 +14,12 @@
    limitations under the License.
 */
 import * as os from "os";
-import { promisify } from "util";
-import { exec } from "child_process";
+import * as https from "https";
 import { Validator } from "ip-num/Validator";
 import { IPv4, IPv6 } from "ip-num/IPNumber";
 import { IPv4Prefix, IPv6Prefix } from "ip-num/Prefix";
 import { IPv4CidrRange, IPv6CidrRange } from "ip-num/IPRange";
 import _ from "./_";
-
-const asyncExec = promisify(exec);
 
 export function getIPv4AddressesForListen(): string[] {
     const addresses = [];
@@ -97,8 +94,44 @@ export function isPermittedHost(url: string, allowedHostname?: string): boolean 
 }
 
 export async function getLatestVersion(): Promise<string> {
-    const { stdout } = await asyncExec("npm view mirakurun version", { encoding: "utf8" });
-    const latestVersion = stdout.trim();
+    return new Promise((resolve, reject) => {
+        const req = https.request("https://registry.npmjs.org/mirakurun/latest", {
+            headers: {
+                "Accept": "application/json",
+                "User-Agent": "Mirakurun"
+            },
+            timeout: 10000
+        }, (res) => {
+            const chunks: Buffer[] = [];
 
-    return latestVersion;
+            res.on("data", (chunk) => {
+                chunks.push(Buffer.from(chunk));
+            });
+
+            res.on("end", () => {
+                if (res.statusCode !== 200) {
+                    reject(new Error(`npm registry responded with ${res.statusCode}`));
+                    return;
+                }
+
+                try {
+                    const data = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+                    if (typeof data.version !== "string") {
+                        reject(new Error("npm registry response does not include version"));
+                        return;
+                    }
+
+                    resolve(data.version);
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        });
+
+        req.on("timeout", () => {
+            req.destroy(new Error("npm registry request timed out"));
+        });
+        req.on("error", reject);
+        req.end();
+    });
 }
