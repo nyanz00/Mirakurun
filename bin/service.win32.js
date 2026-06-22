@@ -26,6 +26,16 @@ const path = require("path");
 
 const serviceName = "mirakurun-nyanz";
 const serviceDisplayName = "mirakurun-nyanz";
+const rootDir = path.resolve(__dirname, "..");
+const localWinserPath = path.join(rootDir, "node_modules", ".bin", "winser.cmd");
+const winserCommand = fs.existsSync(localWinserPath) ? localWinserPath : "winser.cmd";
+
+function execWinser(args) {
+    childProcess.execFileSync(winserCommand, args, {
+        shell: true,
+        stdio: "inherit"
+    });
+}
 
 const action = process.argv[2];
 
@@ -35,13 +45,10 @@ if (action !== "install" && action !== "uninstall") {
 }
 
 if (action === "uninstall") {
-    childProcess.execFileSync("winser.cmd", ["-r", "-x", "-s", "--name", serviceName], {
-        stdio: [null, process.stdout, process.stderr]
-    });
+    execWinser(["-r", "-x", "-s", "--name", serviceName]);
     process.exit(0);
 }
 
-const rootDir = path.resolve(__dirname, "..");
 const logDir = path.join(rootDir, "data", "log");
 if (fs.existsSync(logDir) === false) {
     fs.mkdirSync(logDir, { recursive: true });
@@ -49,18 +56,12 @@ if (fs.existsSync(logDir) === false) {
 const stdoutLogPath = path.join(logDir, "stdout.log");
 const stderrLogPath = path.join(logDir, "stderr.log");
 
-childProcess.execFileSync(
-    "winser.cmd",
-    [
-        "-i", "-a", "--name", serviceName, "--displayname", serviceDisplayName, "--startuptype", "auto",
-        "--startcmd", "node.exe --max-semi-space-size=64 -r source-map-support/register bin\\init.win32.js",
-        "--set", "AppPriority ABOVE_NORMAL_PRIORITY_CLASS",
-        "--set", "Type SERVICE_WIN32_OWN_PROCESS",
-        "--set", `AppStdout ${stdoutLogPath}`,
-        "--set", `AppStderr ${stderrLogPath}`,
-        "--env", "USING_WINSER=1"
-    ],
-    {
-        stdio: [null, process.stdout, process.stderr]
-    }
-);
+execWinser([
+    "-i", "-a", "--name", serviceName, "--displayname", serviceDisplayName, "--startuptype", "auto",
+    "--startcmd", "node.exe --max-semi-space-size=64 -r source-map-support/register bin\\init.win32.js",
+    "--set", "AppPriority ABOVE_NORMAL_PRIORITY_CLASS",
+    "--set", "Type SERVICE_WIN32_OWN_PROCESS",
+    "--set", `AppStdout ${stdoutLogPath}`,
+    "--set", `AppStderr ${stderrLogPath}`,
+    "--env", "USING_WINSER=1"
+]);
