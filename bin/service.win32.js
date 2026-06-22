@@ -27,17 +27,53 @@ const path = require("path");
 const serviceName = "mirakurun-nyanz";
 const serviceDisplayName = "mirakurun-nyanz";
 const rootDir = path.resolve(__dirname, "..");
-const localWinserPath = path.join(rootDir, "node_modules", ".bin", "winser.cmd");
-const winserCommand = fs.existsSync(localWinserPath) ? localWinserPath : "winser.cmd";
 
-function quoteCmdArg(arg) {
-    return `"${String(arg).replace(/"/g, "\"\"")}"`;
+function findWinserCommands() {
+    try {
+        return childProcess.execFileSync("where.exe", ["winser.cmd"], {
+            encoding: "utf8",
+            stdio: ["ignore", "pipe", "ignore"]
+        }).trim().split(/\r?\n/).filter(Boolean);
+    } catch (e) {
+        return [];
+    }
+}
+
+function getWinserCliCandidates() {
+    const candidates = [
+        path.join(rootDir, "node_modules", "winser", "bin", "winser"),
+        path.join(rootDir, "node_modules", "winser", "bin", "winser.js")
+    ];
+
+    for (const commandPath of [
+        path.join(rootDir, "node_modules", ".bin", "winser.cmd"),
+        ...findWinserCommands()
+    ]) {
+        const commandDir = path.dirname(commandPath);
+
+        candidates.push(path.resolve(commandDir, "..", "winser", "bin", "winser"));
+        candidates.push(path.resolve(commandDir, "..", "winser", "bin", "winser.js"));
+        candidates.push(path.resolve(commandDir, "node_modules", "winser", "bin", "winser"));
+        candidates.push(path.resolve(commandDir, "node_modules", "winser", "bin", "winser.js"));
+    }
+
+    return candidates;
+}
+
+function resolveWinserCli() {
+    const candidates = getWinserCliCandidates();
+    const winserCliPath = candidates.find((candidate) => fs.existsSync(candidate));
+
+    if (winserCliPath) {
+        return winserCliPath;
+    }
+
+    console.error("winser was not found. Run npm install, or install winser with npm install -g winser.");
+    process.exit(1);
 }
 
 function execWinser(args) {
-    const command = [winserCommand, ...args].map(quoteCmdArg).join(" ");
-
-    childProcess.execFileSync(process.env.ComSpec || "cmd.exe", ["/d", "/c", command], {
+    childProcess.execFileSync(process.execPath, [resolveWinserCli(), ...args], {
         stdio: "inherit"
     });
 }
