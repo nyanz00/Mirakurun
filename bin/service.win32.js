@@ -30,11 +30,28 @@ const rootDir = path.resolve(__dirname, "..");
 const localWinserPath = path.join(rootDir, "node_modules", ".bin", "winser.cmd");
 const winserCommand = fs.existsSync(localWinserPath) ? localWinserPath : "winser.cmd";
 
+function quoteCmdArg(arg) {
+    return `"${String(arg).replace(/"/g, "\"\"")}"`;
+}
+
 function execWinser(args) {
-    childProcess.execFileSync(winserCommand, args, {
-        shell: true,
+    const command = [winserCommand, ...args].map(quoteCmdArg).join(" ");
+
+    childProcess.execFileSync(process.env.ComSpec || "cmd.exe", ["/d", "/c", command], {
         stdio: "inherit"
     });
+}
+
+function serviceExists() {
+    try {
+        childProcess.execFileSync("sc.exe", ["query", serviceName], {
+            stdio: "ignore"
+        });
+
+        return true;
+    } catch (e) {
+        return false;
+    }
 }
 
 const action = process.argv[2];
@@ -45,6 +62,11 @@ if (action !== "install" && action !== "uninstall") {
 }
 
 if (action === "uninstall") {
+    if (serviceExists() === false) {
+        console.log(`Windows service "${serviceName}" is not installed.`);
+        process.exit(0);
+    }
+
     execWinser(["-r", "-x", "-s", "--name", serviceName]);
     process.exit(0);
 }
