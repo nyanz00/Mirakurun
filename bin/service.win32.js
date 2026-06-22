@@ -107,19 +107,29 @@ if (action === "uninstall") {
     process.exit(0);
 }
 
+if (serviceExists()) {
+    console.log(`Windows service "${serviceName}" is already installed. Reinstalling...`);
+    execWinser(["-r", "-x", "-s", "--name", serviceName]);
+}
+
 const logDir = path.join(rootDir, "data", "log");
 if (fs.existsSync(logDir) === false) {
     fs.mkdirSync(logDir, { recursive: true });
 }
 const stdoutLogPath = path.join(logDir, "stdout.log");
 const stderrLogPath = path.join(logDir, "stderr.log");
+const initScriptPath = path.join(rootDir, "bin", "init.win32.js");
+const startCommand = `"${process.execPath}" "${initScriptPath}"`;
 
 execWinser([
     "-i", "-a", "--name", serviceName, "--displayname", serviceDisplayName, "--startuptype", "auto",
-    "--startcmd", "node.exe --max-semi-space-size=64 -r source-map-support/register bin\\init.win32.js",
+    "--startcmd", startCommand,
     "--set", "AppPriority ABOVE_NORMAL_PRIORITY_CLASS",
     "--set", "Type SERVICE_WIN32_OWN_PROCESS",
+    "--set", `AppDirectory ${rootDir}`,
     "--set", `AppStdout ${stdoutLogPath}`,
     "--set", `AppStderr ${stderrLogPath}`,
+    "--env", `USERPROFILE=${process.env.USERPROFILE || ""}`,
+    "--env", `LOCALAPPDATA=${process.env.LOCALAPPDATA || ""}`,
     "--env", "USING_WINSER=1"
 ]);

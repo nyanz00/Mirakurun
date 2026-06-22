@@ -15,6 +15,8 @@
 */
 "use strict";
 
+require("source-map-support/register");
+
 if (process.platform !== "win32") {
     process.exit(1);
 }
