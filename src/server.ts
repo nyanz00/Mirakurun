@@ -58,8 +58,9 @@ function setWindowsPortableEnv(): void {
     const rootDir = resolve(__dirname, "..");
     const configDir = join(rootDir, "data", "config");
     const dataDir = join(rootDir, "data", "db");
+    const logDir = join(rootDir, "data", "log");
 
-    ensureWindowsPortableData(configDir, dataDir);
+    ensureWindowsPortableData(configDir, dataDir, logDir);
 
     setEnv("SERVER_CONFIG_PATH", join(configDir, "server.yml"));
     setEnv("TUNERS_CONFIG_PATH", join(configDir, "tuners.yml"));
@@ -69,12 +70,13 @@ function setWindowsPortableEnv(): void {
     setEnv("LOGO_DATA_DIR_PATH", join(dataDir, "logo-data"));
     setEnv("MIRAKURUN_PLATFORM", "win32");
 
-    setupCliLogFiles(dataDir);
+    setupCliLogFiles(logDir);
 }
 
-function ensureWindowsPortableData(configDir: string, dataDir: string): void {
+function ensureWindowsPortableData(configDir: string, dataDir: string, logDir: string): void {
     ensureDirectory(configDir, "config");
     ensureDirectory(dataDir, "db");
+    ensureDirectory(logDir, "log");
 }
 
 function ensureDirectory(path: string, name: string): void {
@@ -89,17 +91,17 @@ function ensureDirectory(path: string, name: string): void {
     mkdirSync(path, { recursive: true });
 }
 
-function setupCliLogFiles(dataDir: string): void {
+function setupCliLogFiles(logDir: string): void {
     if (process.env.USING_WINSER === "1" || process.env.MIRAKURUN_CLI_LOG === "0") {
         return;
     }
 
-    if (existsSync(dataDir) === false) {
-        mkdirSync(dataDir, { recursive: true });
+    if (existsSync(logDir) === false) {
+        mkdirSync(logDir, { recursive: true });
     }
 
-    const stdout = createWriteStream(join(dataDir, "stdout.log"), { flags: "a" });
-    const stderr = createWriteStream(join(dataDir, "stderr.log"), { flags: "a" });
+    const stdout = createWriteStream(join(logDir, "stdout.log"), { flags: "a" });
+    const stderr = createWriteStream(join(logDir, "stderr.log"), { flags: "a" });
     const originalStdoutWrite = process.stdout.write.bind(process.stdout);
     const originalStderrWrite = process.stderr.write.bind(process.stderr);
 

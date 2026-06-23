@@ -34,32 +34,79 @@ const opt = {
 console.error("remote:", opt);
 
 let stream: IncomingMessage;
+let reconnectTimer: NodeJS.Timeout;
+let exiting = false;
 
 const client = new Client();
 client.host = opt.host;
 client.port = opt.port;
 client.userAgent = "Mirakurun (Remote)";
 
-client.getChannelStream(opt.type, opt.channel, opt.decode)
-    .then(_stream => {
-        stream = _stream;
-        stream.pipe(process.stdout);
-        stream.once("end", () => exit());
-    })
-    .catch(err => {
-        if (err.req) {
-            console.error("remote:", "(error)", err.req.path, err.statusCode, err.statusMessage);
-        } else {
-            console.error("remote:", "(error)", err.address, err.code);
-        }
-        exit(1);
-    });
+connect();
 
-function exit(code = 0) {
-    console.error("remote:", "exit.");
+function connect() {
+    client.getChannelStream(opt.type, opt.channel, opt.decode)
+        .then(_stream => {
+            stream = _stream;
+            stream.pipe(process.stdout);
+            stream.once("end", () => reconnect("end"));
+            stream.once("close", () => reconnect("close"));
+            stream.once("aborted", () => reconnect("aborted"));
+            stream.once("error", err => {
+                console.error("remote:", "(stream error)", err.message);
+                reconnect("error");
+            });
+        })
+        .catch(err => {
+            if (err.req) {
+                console.error("remote:", "(error)", err.req.path, err.statusCode, err.statusMessage);
+            } else if (err.message) {
+                console.error("remote:", "(error)", err.message);
+            } else {
+                console.error("remote:", "(error)", err.address, err.code);
+            }
+            reconnect("connect");
+        });
+}
+
+function reconnect(reason: string) {
+    if (exiting) {
+        return;
+    }
+
+    console.error("remote:", "reconnect.", reason);
 
     if (stream) {
         stream.unpipe();
+        stream.removeAllListeners();
+        stream.destroy();
+        stream = null;
+    }
+
+    if (!reconnectTimer) {
+        reconnectTimer = setTimeout(() => {
+            reconnectTimer = null;
+            connect();
+        }, 3000);
+    }
+}
+
+function exit(code = 0) {
+    if (exiting) {
+        return;
+    }
+
+    exiting = true;
+    console.error("remote:", "exit.");
+
+    if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+    }
+
+    if (stream) {
+        stream.unpipe();
+        stream.destroy();
     }
 
     process.exit(code);

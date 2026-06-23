@@ -14,6 +14,7 @@
    limitations under the License.
 */
 import * as child_process from "child_process";
+import * as path from "path";
 import * as stream from "stream";
 import * as util from "util";
 import EventEmitter = require("eventemitter3");
@@ -304,7 +305,7 @@ export default class TunerDevice extends EventEmitter {
         let cmd: string;
 
         if (this._isRemote === true) {
-            cmd = "node lib/remote";
+            cmd = `"${process.execPath}" "${path.join(__dirname, "..", "remote.js")}"`;
             cmd += " " + this._config.remoteMirakurunHost;
             cmd += " " + (this._config.remoteMirakurunPort || 40772);
             cmd += " " + common.getTuningChannelType(ch.type);
@@ -330,6 +331,8 @@ export default class TunerDevice extends EventEmitter {
         this._process = child_process.spawn(parsed.command, parsed.args);
         this._command = cmd;
         this._channel = ch;
+        this._isAvailable = true;
+        this._exited = false;
 
         if (this._config.dvbDevicePath && process.platform !== "win32") {
             const cat = child_process.spawn("cat", [this._config.dvbDevicePath]);
