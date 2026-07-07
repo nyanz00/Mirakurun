@@ -68,6 +68,7 @@ function setWindowsPortableEnv(): void {
     setEnv("SERVICES_DB_PATH", join(dataDir, "services.json"));
     setEnv("PROGRAMS_DB_PATH", join(dataDir, "programs.json"));
     setEnv("LOGO_DATA_DIR_PATH", join(dataDir, "logo-data"));
+    setEnv("LOGO_MAP_PATH", join(dataDir, "logo-map.json"));
     setEnv("MIRAKURUN_PLATFORM", "win32");
 
     setupCliLogFiles(logDir);
@@ -128,6 +129,7 @@ if (isWindows) {
     setEnv("SERVICES_DB_PATH", "/usr/local/var/db/mirakurun/services.json");
     setEnv("PROGRAMS_DB_PATH", "/usr/local/var/db/mirakurun/programs.json");
     setEnv("LOGO_DATA_DIR_PATH", "/usr/local/var/db/mirakurun/logo-data");
+    setEnv("LOGO_MAP_PATH", "/usr/local/var/db/mirakurun/logo-map.json");
 }
 
 import _ from "./Mirakurun/_";

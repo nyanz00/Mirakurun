@@ -24,7 +24,19 @@ import Event from "./Event";
 import ChannelItem from "./ChannelItem";
 import ServiceItem from "./ServiceItem";
 
-const { LOGO_DATA_DIR_PATH } = process.env;
+const { LOGO_DATA_DIR_PATH, LOGO_MAP_PATH } = process.env;
+
+interface LogoMapItem {
+    networkId: number;
+    serviceId: number;
+    logoId: number;
+    name?: string;
+    updatedAt: number;
+}
+
+interface LogoMap {
+    [key: string]: LogoMapItem;
+}
 
 export class Service {
     static getLogoDataPath(networkId: number, logoId: number) {
@@ -98,6 +110,116 @@ export class Service {
         }
 
         log.info("Service.saveLogoData(): saved. (networkId=%d logoId=%d)", networkId, logoId);
+
+        for (const service of _.service.findByNetworkIdWithLogoId(networkId, logoId)) {
+            this.updateLogoMap(service.networkId, service.serviceId, service.logoId, service.name).catch(err => {
+                log.warn(
+                    "Service.saveLogoData(): failed to update logo-map (networkId=%d serviceId=%d logoId=%d): %s",
+                    service.networkId, service.serviceId, service.logoId, err
+                );
+            });
+        }
+    }
+
+    static async resolveLogoId(networkId: number, serviceId: number, logoId: number, name?: string): Promise<number> {
+        if (typeof logoId === "number" && logoId >= 0) {
+            await this.updateLogoMap(networkId, serviceId, logoId, name);
+            return logoId;
+        }
+
+        const mapLogoId = await this.getLogoIdFromMap(networkId, serviceId);
+        if (mapLogoId >= 0) {
+            log.info(
+                "Service.resolveLogoId(): using logo-map entry (networkId=%d serviceId=%d logoId=%d name=%s)",
+                networkId, serviceId, mapLogoId, name || ""
+            );
+            return mapLogoId;
+        }
+
+        return logoId;
+    }
+
+    static async updateLogoMap(networkId: number, serviceId: number, logoId: number, name?: string): Promise<void> {
+        if (typeof logoId !== "number" || logoId < 0) {
+            return;
+        }
+
+        const logoMap = await this.loadLogoMap();
+        const key = this.getLogoMapKey(networkId, serviceId);
+        const current = logoMap[key];
+        if (
+            current &&
+            current.logoId === logoId &&
+            current.name === name
+        ) {
+            return;
+        }
+
+        logoMap[key] = {
+            networkId,
+            serviceId,
+            logoId,
+            name,
+            updatedAt: Date.now()
+        };
+
+        this.saveLogoMap();
+    }
+
+    private static _logoMap: LogoMap = null;
+    private static _logoMapSaveTimerId: NodeJS.Timeout = null;
+
+    private static getLogoMapKey(networkId: number, serviceId: number): string {
+        return `${networkId}_${serviceId}`;
+    }
+
+    private static async getLogoIdFromMap(networkId: number, serviceId: number): Promise<number> {
+        const logoMap = await this.loadLogoMap();
+        const item = logoMap[this.getLogoMapKey(networkId, serviceId)];
+        if (!item || typeof item.logoId !== "number" || item.logoId < 0) {
+            return -1;
+        }
+
+        if (await this.isLogoDataExists(networkId, item.logoId)) {
+            return item.logoId;
+        }
+
+        return -1;
+    }
+
+    private static async loadLogoMap(): Promise<LogoMap> {
+        if (this._logoMap !== null) {
+            return this._logoMap;
+        }
+
+        try {
+            const json = await readFile(LOGO_MAP_PATH, "utf8");
+            const logoMap = JSON.parse(json);
+            this._logoMap = logoMap && typeof logoMap === "object" && Array.isArray(logoMap) === false ? logoMap : {};
+        } catch (err) {
+            this._logoMap = {};
+            this.saveLogoMap();
+        }
+
+        return this._logoMap;
+    }
+
+    private static saveLogoMap(): void {
+        clearTimeout(this._logoMapSaveTimerId);
+        this._logoMapSaveTimerId = setTimeout(() => {
+            this._saveLogoMap().catch(err => {
+                log.warn("Service.saveLogoMap(): failed to save logo-map: %s", err);
+            });
+        }, 1000);
+    }
+
+    private static async _saveLogoMap(): Promise<void> {
+        const dirPath = dirname(LOGO_MAP_PATH);
+        if (existsSync(dirPath) === false) {
+            await mkdir(dirPath, { recursive: true });
+        }
+
+        await writeFile(LOGO_MAP_PATH, JSON.stringify(this._logoMap || {}, null, 2));
     }
 
     private _items: ServiceItem[] = [];
@@ -195,6 +317,7 @@ export class Service {
         log.debug("loading services...");
 
         let updated = false;
+        await Service.loadLogoMap();
 
         const services = await db.loadServices(_.configIntegrity.channels, true);
         for (const service of services) {
@@ -223,6 +346,12 @@ export class Service {
                 updated = true;
             }
 
+            const logoId = await Service.resolveLogoId(service.networkId, service.serviceId, service.logoId, service.name);
+            if (logoId !== service.logoId) {
+                service.logoId = logoId;
+                updated = true;
+            }
+
             this.add(
                 new ServiceItem(
                     channelItem,
@@ -230,7 +359,7 @@ export class Service {
                     service.serviceId,
                     service.name,
                     service.type,
-                    service.logoId,
+                    logoId,
                     service.remoteControlKeyId,
                     service.epgReady,
                     service.epgUpdatedAt
@@ -380,8 +509,9 @@ export class Service {
 
         log.debug("ChannelItem#'%s' serviceId=%d: %s", channel.name, serviceId, JSON.stringify(service, null, "  "));
 
+        const logoId = await Service.resolveLogoId(service.networkId, service.serviceId, service.logoId, service.name);
         this.add(
-            new ServiceItem(channel, service.networkId, service.serviceId, service.name, service.type, service.logoId)
+            new ServiceItem(channel, service.networkId, service.serviceId, service.name, service.type, logoId)
         );
 
         log.info("ChannelItem#'%s' serviceId=%d check has finished", channel.name, serviceId);
@@ -400,13 +530,14 @@ export class Service {
 
         log.debug("ChannelItem#'%s' services: %s", channel.name, JSON.stringify(services, null, "  "));
 
-        services.forEach(service => {
+        for (const service of services) {
+            const logoId = await Service.resolveLogoId(service.networkId, service.serviceId, service.logoId, service.name);
             const item = this.get(service.networkId, service.serviceId);
             if (item !== null) {
                 item.name = service.name;
                 item.type = service.type;
-                if (service.logoId > -1) {
-                    item.logoId = service.logoId;
+                if (logoId > -1) {
+                    item.logoId = logoId;
                 }
                 item.remoteControlKeyId = service.remoteControlKeyId;
             } else if (add === true) {
@@ -417,12 +548,12 @@ export class Service {
                         service.serviceId,
                         service.name,
                         service.type,
-                        service.logoId,
+                        logoId,
                         service.remoteControlKeyId
                     )
                 );
             }
-        });
+        }
 
         log.info("ChannelItem#'%s' service scan has finished", channel.name);
     }
