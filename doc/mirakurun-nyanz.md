@@ -20,6 +20,7 @@
 - Web UI の tuner status に表示される dropped pkts を TS continuity counter ベースで数えるように調整
 - BS/CS の局ロゴ取得で DSM-CC の重複ブロックを二重カウントしないように調整
 - web UIのEPGの局タイプを存在するチューナータイプのみ表示されるように変更
+- アップデート時などに局ロゴのデータをそのまま移植出来るようにlogo-map機能を追加
 - 随時本家版の変更に追従
 
 ## インストール
@@ -114,6 +115,9 @@ npm run service:uninstall.win32
 http://localhost:40772/
 http://<server-ip>:40772/
 ```
+
+## logo-map機能
+data\dbにnetworkidとserviceidとlogoidを記録したlogo-map.jsonが生成されるようになっているので、logo-map.jsonとロゴデータの入ったlogo-dataフォルダを新しいバージョンのmirakurunのdata\dbに配置すると、logo-mapを参考に再スキャンされたサービスにロゴidを割り振り、移植したロゴデータを使用します。
 
 ## 注意点・あとがき
 
