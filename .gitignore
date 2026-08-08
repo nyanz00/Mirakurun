@@ -1,5 +1,5 @@
 /node_modules
-/lib
+/lib/tsconfig.tsbuildinfo
 /tmp
 /*.0x
 .env

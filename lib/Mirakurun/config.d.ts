@@ -1,0 +1,11 @@
+import * as apid from "../../api";
+type Server = Readonly<apid.ConfigServer>;
+type Tuner = Readonly<apid.ConfigTunersItem>;
+type Channel = Readonly<apid.ConfigChannelsItem>;
+export declare function loadServer(): Promise<Server>;
+export declare function saveServer(data: Server): Promise<void>;
+export declare function loadTuners(): Promise<Tuner[]>;
+export declare function saveTuners(data: Tuner[]): Promise<void>;
+export declare function loadChannels(): Promise<Channel[]>;
+export declare function saveChannels(data: Channel[]): Promise<void>;
+export {};
