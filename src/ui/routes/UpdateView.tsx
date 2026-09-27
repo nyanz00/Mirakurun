@@ -23,9 +23,9 @@ import * as ui from "../modules/ui";
 import "./UpdateView.sass";
 
 const relationLabel: Record<string, string> = {
-    ahead: "新しい版",
-    same: "現在の版",
-    behind: "過去の版",
+    ahead: "新しいバージョン",
+    same: "現在のバージョン",
+    behind: "過去のバージョン",
     diverged: "別の履歴",
     unknown: "比較不可"
 };
