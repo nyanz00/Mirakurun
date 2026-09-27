@@ -30,6 +30,9 @@ const relationLabel: Record<string, string> = {
     unknown: "比較不可"
 };
 
+const isSameBranch = (branch: string | null, target: SystemUpdateTargetName): boolean =>
+    (branch === "develop" && target === "develop") || (branch === "nyanz-master" && target === "stable");
+
 export const UpdateView: React.FC = () => {
     ui.setTitle("バージョン管理");
     const [info, setInfo] = useState<SystemUpdateInfo | null>(null);
@@ -97,7 +100,9 @@ export const UpdateView: React.FC = () => {
             ? "developは開発中のコードです。起動できなくなる場合、手動での復旧が必要になる可能性があります。\n\n"
             : target === "rollback" || (target === "stable" && info.branch === "develop")
                 ? "現在より古いコードへ切り替わる場合があります。設定の互換性を確認してください。\n\n" : "";
-        if (!window.confirm(`${warning}${selected.label}へ切り替えます。設定と局ロゴをバックアップしてからビルドします。続行しますか？`)) {
+        const action = target === "rollback" ? `${selected.label}へ戻します`
+            : isSameBranch(info.branch, target) ? `${selected.label}に更新します` : `${selected.label}へ切り替えます`;
+        if (!window.confirm(`${warning}${action}。設定と局ロゴをバックアップしてからビルドします。続行しますか？`)) {
             return;
         }
         setBusy(true);
@@ -170,7 +175,7 @@ export const UpdateView: React.FC = () => {
                                         <Tag minimal>{relationLabel[choice.relation]}</Tag>
                                     </div>
                                     <Button intent={target === "develop" ? "warning" : "primary"}
-                                        text={target === "rollback" ? "戻す" : "切り替える"}
+                                        text={target === "rollback" ? "戻す" : isSameBranch(info.branch, target) ? "更新" : "切り替える"}
                                         disabled={disabled || !choice.canApply}
                                         onClick={() => void begin(target)} />
                                     {!choice.canApply && choice.reason && <div className="bp5-text-muted">{choice.reason}</div>}
