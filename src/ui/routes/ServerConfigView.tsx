@@ -19,6 +19,7 @@ import {
     Alignment,
     Breadcrumbs,
     Button,
+    Callout,
     Dialog,
     DialogBody,
     DialogFooter,
@@ -61,6 +62,8 @@ export const ServerConfigView: React.FC = () => {
     const [editing, setEditing] = useState<ConfigServer | null>(null);
     const [showSaveDialog, setShowSaveDialog] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
+    const [canEditUpdateAllowlist, setCanEditUpdateAllowlist] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
     ui.setTitle("サーバー設定", isLoading);
@@ -88,7 +91,10 @@ export const ServerConfigView: React.FC = () => {
 
         (async () => {
             try {
-                const res = await (await fetch(configAPI)).json();
+                const response = await fetch(configAPI);
+                const clientIP = response.headers.get("X-Your-IP");
+                setCanEditUpdateAllowlist(clientIP === "127.0.0.1" || clientIP === "::1" || clientIP === "::ffff:127.0.0.1");
+                const res = await response.json();
                 console.log("ServerConfigView", "GET", configAPI, "->", res);
                 setEditing({ ...res });
                 setCurrent({ ...res });
@@ -172,14 +178,20 @@ export const ServerConfigView: React.FC = () => {
                 }
             }
             console.log("ServerConfigView", "PUT", configAPI, "<-", payload);
-            await fetch(configAPI, {
+            const response = await fetch(configAPI, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json; charset=utf-8" },
                 body: JSON.stringify(payload)
             });
+            if (!response.ok) {
+                const failure = await response.json();
+                throw new Error(failure.reason || `設定を保存できませんでした (${response.status})`);
+            }
+            setSaveError(null);
             setSaved(true);
         } catch (err) {
             console.error(err);
+            setSaveError(err instanceof Error ? err.message : String(err));
         }
     };
 
@@ -233,6 +245,7 @@ export const ServerConfigView: React.FC = () => {
             {toolbar}
 
             <div className="content">
+                {saveError && <Callout intent="danger">{saveError}</Callout>}
                 <Section
                     className="config-section"
                     title="Basic Config"
@@ -455,12 +468,13 @@ export const ServerConfigView: React.FC = () => {
                             className="config-form-wide"
                             label="Web更新を許可する IPv4 CIDR 範囲"
                             labelFor="update-allow-ipv4-cidrs"
-                            helperText={invalidUpdateAllowIPv4CidrRanges ? "IPv4 CIDR range is invalid." : "管理PCのIPアドレスを1行に1つずつ指定。通常のAPI側でも接続許可が必要です。初期値は127.0.0.1/32。変更後は再起動してください。"}
+                            helperText={!canEditUpdateAllowlist ? "このリストはMirakurun本体のlocalhostから開いた場合だけ変更できます。" : invalidUpdateAllowIPv4CidrRanges ? "IPv4 CIDR range is invalid." : "管理PCのIPアドレスを1行に1つずつ指定。通常のAPI側でも接続許可が必要です。初期値は127.0.0.1/32。変更後は再起動してください。"}
                             intent={invalidUpdateAllowIPv4CidrRanges ? Intent.DANGER : Intent.NONE}
                         >
                             <TextArea
                                 id="update-allow-ipv4-cidrs"
                                 value={updateAllowIPv4CidrRangesText}
+                                disabled={!canEditUpdateAllowlist}
                                 onChange={(e) => {
                                     const newValue = e.target.value;
                                     setUpdateAllowIPv4CidrRangesText(newValue);
