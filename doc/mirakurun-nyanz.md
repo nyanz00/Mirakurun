@@ -1,6 +1,6 @@
 # Windows native fork notes
 
-この文書は、`nyanz00/win32` ブランチで追加した Windows ネイティブ運用向けの変更点をまとめたものです。
+この文書は、`nyanz00/Mirakurun` の Windows ネイティブ運用向けの変更点をまとめたものです。
 
 このフォークは Mirakurun 4.0.0 系を Windows 上で動かすための移植・調整版です。
 
@@ -28,11 +28,28 @@
 Node.js 22 / 24 のいずれかを入れた Windows 環境で実行してください。
 
 ```powershell
-git clone -b win32 https://github.com/nyanz00/Mirakurun.git
+git clone -b nyanz-master https://github.com/nyanz00/Mirakurun.git
 cd Mirakurun
 npm install
 npm run build
 ```
+
+## ブランチと更新
+
+`nyanz-master` は実機確認済みの安定版で、GitHub のデフォルトブランチです。`develop` は開発版です。通常のインストールや安定版への更新には `nyanz-master` を使用します。
+
+既存の `win32` ブランチを Git clone した環境では、一度だけローカルブランチ名と追跡先を切り替えてください。作業前に `git status --short --branch` で未コミットの変更がないことを確認します。
+
+```powershell
+git fetch origin --prune
+git branch -m win32 nyanz-master
+git branch --set-upstream-to=origin/nyanz-master nyanz-master
+git pull --ff-only
+```
+
+以後、安定版は `nyanz-master` 上で `git pull --ff-only` できます。更新時は必要に応じて `npm install` と `npm run build` を実行し、Mirakurun を再起動してください。ZIP 展開で導入した環境では Git の履歴がないため、`git pull` は使えません。
+
+`package.json` のバージョンは本家 Mirakurun の番号を維持します。nyanz 版の番号は「Mirakurun について」の Current 欄と、安定版の Git タグで表します。開発版では Current 欄にだけ ` +dev` が付き、安定版では外れます。既存の `4.1.3-nyanz.1` タグは過去の形式として残し、次の安定版から画面表示とタグを一致させます。
 
 ## 設定ファイル
 

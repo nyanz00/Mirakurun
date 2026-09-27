@@ -6,7 +6,8 @@ A Japanese digital TV tuner API server specifically designed for "Air" (code nam
 
 ## Mirakurun-nyanz
 
-このブランチは、Mirakurun 4.0.0 系を Windows ネイティブ環境で動作させることを目的としたフォークです。<br>
+このフォークは、Mirakurun 4.0.0 系を Windows ネイティブ環境で動作させることを目的としています。<br>
+`nyanz-master` は実機確認済みの安定版、`develop` は開発版です。<br>
 現在まだ改修中で、正常な動作は保証していません。<br>
 また、Windows 環境ではある程度動作確認を行っていますが、Linux 上での動作確認は行っていないため、そちらは普通に本家を使用してください。<br>
 このフォークのその他詳細な変更点は [別途ドキュメント](doc/mirakurun-nyanz.md) にまとめているので、そちらをご覧ください。<br>
@@ -21,11 +22,13 @@ A Japanese digital TV tuner API server specifically designed for "Air" (code nam
 ### インストール
 
 ```powershell
-git clone -b win32 https://github.com/nyanz00/Mirakurun.git
+git clone -b nyanz-master https://github.com/nyanz00/Mirakurun.git
 cd Mirakurun
 npm install
 npm run build
 ```
+
+旧 `win32` ブランチからの切り替えと更新方法は [Windows 版ドキュメント](doc/mirakurun-nyanz.md#ブランチと更新) を参照してください。
 
 設定ファイルは `data\config\` に配置します。何も配置されていない場合、初回起動時に一応テンプレートが自動生成されるようになっています。
 
