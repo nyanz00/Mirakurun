@@ -61,6 +61,35 @@ export function getTuningChannelType(type: apid.ChannelType): apid.ChannelType {
     return isGRChannelType(type) ? "GR" : type;
 }
 
+export class WhereQueryError extends Error {
+    readonly code = "WHERE_QUERY";
+    readonly status = 400;
+
+    constructor() {
+        super("$where is not allowed");
+        this.name = "WhereQueryError";
+    }
+}
+
+export function rejectWhere(query: unknown, seen?: WeakSet<object>): void {
+    if (query === null || typeof query !== "object") {
+        return;
+    }
+
+    const visited = seen || new WeakSet<object>();
+    if (visited.has(query)) {
+        return;
+    }
+    visited.add(query);
+
+    for (const key in query) {
+        if (key === "$where") {
+            throw new WhereQueryError();
+        }
+        rejectWhere((query as { [key: string]: unknown })[key], visited);
+    }
+}
+
 export const deepClone = rfdc();
 
 export function updateObject<T, U>(target: T, input: U): boolean;

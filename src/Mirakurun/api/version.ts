@@ -14,11 +14,34 @@
    limitations under the License.
 */
 import { Operation } from "express-openapi";
+import { execFile } from "child_process";
+import * as fs from "fs";
+import * as path from "path";
+import { promisify } from "util";
 import * as api from "../api";
 import * as apid from "../../../api";
 import { getLatestVersion } from "../system";
 import * as log from "../log";
 const pkg = require("../../../package.json");
+const rootDir = path.resolve(__dirname, "../../..");
+const execFileAsync = promisify(execFile);
+
+async function getCurrentBranch(): Promise<string | undefined> {
+    if (!fs.existsSync(path.join(rootDir, ".git"))) {
+        return undefined;
+    }
+
+    try {
+        const { stdout } = await execFileAsync("git", ["branch", "--show-current"], {
+            cwd: rootDir,
+            timeout: 3000,
+            windowsHide: true
+        });
+        return stdout.trim() || undefined;
+    } catch (_) {
+        return undefined;
+    }
+}
 
 export const get: Operation = async (req, res) => {
     let latest = pkg.version;
@@ -31,7 +54,8 @@ export const get: Operation = async (req, res) => {
 
     const version: apid.Version = {
         current: pkg.version,
-        latest
+        latest,
+        branch: await getCurrentBranch()
     };
 
     api.responseJSON(res, version);

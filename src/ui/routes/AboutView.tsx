@@ -18,7 +18,7 @@ import { useState } from "react";
 import { Alignment, Breadcrumbs, Button, Card, Divider, Elevation, H3, H5, Navbar, Text } from "@blueprintjs/core";
 import { state } from "../modules/state";
 import * as ui from "../modules/ui";
-import { VersionStatus } from "../components/VersionStatus";
+import { VersionStatus, useVersionInfo } from "../components/VersionStatus";
 import { forkRepositoryUrl, forkVersion } from "../modules/constants";
 import nyanzLogo from "../nyanz-smile.png";
 
@@ -30,6 +30,7 @@ export const AboutView: React.FC = () => {
     ui.setTitle("Mirakurun について");
 
     const [consented, setConsented] = useState<boolean>(false);
+    const { version } = useVersionInfo();
 
     const toolbar = (
         <Navbar className="toolbar">
@@ -65,7 +66,7 @@ export const AboutView: React.FC = () => {
                                 <tbody>
                                     <tr>
                                         <td>Current</td>
-                                        <td>{forkVersion}</td>
+                                        <td>{forkVersion}{version?.branch === "develop" ? " +dev" : ""}</td>
                                     </tr>
                                     <tr>
                                         <td>Latest</td>
