@@ -51,7 +51,7 @@ git pull --ff-only
 
 GitHub のタグ付きアーカイブをクライアントライブラリとして使えるよう、`lib/client.js` と型定義・ソースマップだけを Git に含めています。サーバーと Web UI のビルド成果物は含めないため、Mirakurun 本体として動かす際は上記のビルドが必要です。
 
-`package.json` のバージョンは本家 Mirakurun の番号を維持します。nyanz 版の番号は「Mirakurun について」の Current 欄と、安定版の Git タグで表します。Git 管理下で `develop` ブランチを実行中は Current 欄にだけ ` +dev` が付き、安定版では外れます。既存の `4.1.3-nyanz.1` タグは過去の形式として残し、次の安定版から画面表示とタグを一致させます。
+`package.json` のバージョンは本家 Mirakurun の番号を維持します。nyanz 版の番号は「Mirakurun について」の Current 欄と、安定版の Git タグで表します。本家のバージョンが上がった最初の nyanz 安定版は `nyanz1.0` から始め、同じ本家バージョンで nyanz 版の安定版を追加するときに `1.1`、`1.2` と進めます。`develop` の各コミットでは番号を上げません。Git 管理下で `develop` ブランチを実行中は Current 欄にだけ ` +dev` が付き、安定版では外れます。既存の `4.1.3-nyanz.1` タグは過去の形式として残し、次の安定版から画面表示とタグを一致させます。
 
 ## Web UI からの更新
 
