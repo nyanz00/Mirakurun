@@ -66,11 +66,13 @@ export const ServerConfigView: React.FC = () => {
     ui.setTitle("サーバー設定", isLoading);
 
     const [allowIPv4CidrRangesText, setAllowIPv4CidrRangesText] = useState("");
+    const [updateAllowIPv4CidrRangesText, setUpdateAllowIPv4CidrRangesText] = useState("");
     const [allowIPv6CidrRangesText, setAllowIPv6CidrRangesText] = useState("");
     const [allowOriginsText, setAllowOriginsText] = useState("");
 
     const syncMultilineConfigValues = (config: ConfigServer) => {
         setAllowIPv4CidrRangesText(multilineConfigValue(config.allowIPv4CidrRanges));
+        setUpdateAllowIPv4CidrRangesText(multilineConfigValue(config.updateAllowIPv4CidrRanges));
         setAllowIPv6CidrRangesText(multilineConfigValue(config.allowIPv6CidrRanges));
         setAllowOriginsText(multilineConfigValue(config.allowOrigins));
     };
@@ -105,6 +107,7 @@ export const ServerConfigView: React.FC = () => {
     let invalid = false;
     let invalidEpgGatheringJobSchedule = false;
     let invalidAllowIPv4CidrRanges = false;
+    let invalidUpdateAllowIPv4CidrRanges = false;
     let invalidAllowIPv6CidrRanges = false;
 
     if (editing) {
@@ -120,6 +123,16 @@ export const ServerConfigView: React.FC = () => {
                 if (!valid) {
                     invalid = true;
                     invalidAllowIPv4CidrRanges = true;
+                    break;
+                }
+            }
+        }
+        if (editing.updateAllowIPv4CidrRanges) {
+            for (const range of editing.updateAllowIPv4CidrRanges) {
+                const [valid] = IPValidator.isValidIPv4CidrRange(range);
+                if (!valid) {
+                    invalid = true;
+                    invalidUpdateAllowIPv4CidrRanges = true;
                     break;
                 }
             }
@@ -435,6 +448,26 @@ export const ServerConfigView: React.FC = () => {
                                 }}
                                 rows={3}
                                 intent={invalidAllowIPv4CidrRanges ? Intent.DANGER : Intent.NONE}
+                            />
+                        </FormGroup>
+
+                        <FormGroup
+                            className="config-form-wide"
+                            label="Web更新を許可する IPv4 CIDR 範囲"
+                            labelFor="update-allow-ipv4-cidrs"
+                            helperText={invalidUpdateAllowIPv4CidrRanges ? "IPv4 CIDR range is invalid." : "管理PCのIPアドレスを1行に1つずつ指定。通常のAPI側でも接続許可が必要です。初期値は127.0.0.1/32。変更後は再起動してください。"}
+                            intent={invalidUpdateAllowIPv4CidrRanges ? Intent.DANGER : Intent.NONE}
+                        >
+                            <TextArea
+                                id="update-allow-ipv4-cidrs"
+                                value={updateAllowIPv4CidrRangesText}
+                                onChange={(e) => {
+                                    const newValue = e.target.value;
+                                    setUpdateAllowIPv4CidrRangesText(newValue);
+                                    setEditing({ ...editing, updateAllowIPv4CidrRanges: parseMultilineConfigValue(newValue) });
+                                }}
+                                rows={2}
+                                intent={invalidUpdateAllowIPv4CidrRanges ? Intent.DANGER : Intent.NONE}
                             />
                         </FormGroup>
 

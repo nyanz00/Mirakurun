@@ -39,6 +39,30 @@ interface LogoMap {
 }
 
 export class Service {
+    static async pauseLogoWrites(): Promise<() => void> {
+        if (this._logoPause !== null) {
+            throw new Error("logo writes are already paused");
+        }
+        let resume: () => void;
+        this._logoPause = new Promise<void>(resolve => resume = resolve);
+        const release = () => {
+            this._logoPause = null;
+            resume();
+        };
+        try {
+            await Promise.all(Array.from(this._activeLogoWrites));
+            if (this._logoMapSaveTimerId !== null) {
+                clearTimeout(this._logoMapSaveTimerId);
+                this._logoMapSaveTimerId = null;
+                await this.writeLogoMap();
+            }
+            return release;
+        } catch (err) {
+            release();
+            throw err;
+        }
+    }
+
     static getLogoDataPath(networkId: number, logoId: number) {
         if (typeof logoId !== "number" || logoId < 0) {
             throw new Error("Invalid `logoId`");
@@ -83,42 +107,27 @@ export class Service {
         }
     }
 
-    static async saveLogoData(networkId: number, logoId: number, data: Uint8Array, retrying = false): Promise<void> {
-        log.info("Service.saveLogoData(): saving... (networkId=%d logoId=%d)", networkId, logoId);
-
-        const path = Service.getLogoDataPath(networkId, logoId);
-
-        try {
-            await writeFile(path, data, { encoding: "binary" });
-        } catch (e) {
-            if (retrying === false) {
-                // mkdir if not exists
-                const dirPath = dirname(path);
-                if (existsSync(dirPath) === false) {
-                    log.warn("Service.saveLogoData(): making directory `%s`... (networkId=%d logoId=%d)", dirPath, networkId, logoId);
-                    try {
-                        await mkdir(dirPath, { recursive: true });
-                    } catch (e) {
-                        throw e;
-                    }
+    static async saveLogoData(networkId: number, logoId: number, data: Uint8Array): Promise<void> {
+        return this.withLogoWrite(async () => {
+            log.info("Service.saveLogoData(): saving... (networkId=%d logoId=%d)", networkId, logoId);
+            const logoPath = Service.getLogoDataPath(networkId, logoId);
+            try {
+                await writeFile(logoPath, data, { encoding: "binary" });
+            } catch (err) {
+                const dirPath = dirname(logoPath);
+                if (existsSync(dirPath)) {
+                    throw err;
                 }
-                // retry
-                log.warn("Service.saveLogoData(): retrying... (networkId=%d logoId=%d)", networkId, logoId);
-                return this.saveLogoData(networkId, logoId, data, true);
+                await mkdir(dirPath, { recursive: true });
+                await writeFile(logoPath, data, { encoding: "binary" });
             }
-            throw e;
-        }
-
-        log.info("Service.saveLogoData(): saved. (networkId=%d logoId=%d)", networkId, logoId);
-
-        for (const service of _.service.findByNetworkIdWithLogoId(networkId, logoId)) {
-            this.updateLogoMap(service.networkId, service.serviceId, service.logoId, service.name).catch(err => {
-                log.warn(
-                    "Service.saveLogoData(): failed to update logo-map (networkId=%d serviceId=%d logoId=%d): %s",
-                    service.networkId, service.serviceId, service.logoId, err
-                );
-            });
-        }
+            log.info("Service.saveLogoData(): saved. (networkId=%d logoId=%d)", networkId, logoId);
+            for (const service of _.service.findByNetworkIdWithLogoId(networkId, logoId)) {
+                this.updateLogoMap(service.networkId, service.serviceId, service.logoId, service.name).catch(err => {
+                    log.warn("Service.saveLogoData(): failed to update logo-map: %s", err);
+                });
+            }
+        });
     }
 
     static async resolveLogoId(networkId: number, serviceId: number, logoId: number, name?: string): Promise<number> {
@@ -166,8 +175,25 @@ export class Service {
         this.saveLogoMap();
     }
 
+    private static _logoPause: Promise<void> = null;
+    private static _activeLogoWrites = new Set<Promise<void>>();
     private static _logoMap: LogoMap = null;
     private static _logoMapSaveTimerId: NodeJS.Timeout = null;
+
+    private static async withLogoWrite<T>(write: () => Promise<T>): Promise<T> {
+        while (this._logoPause !== null) {
+            await this._logoPause;
+        }
+        let complete: () => void;
+        const active = new Promise<void>(resolve => complete = resolve);
+        this._activeLogoWrites.add(active);
+        try {
+            return await write();
+        } finally {
+            this._activeLogoWrites.delete(active);
+            complete();
+        }
+    }
 
     private static getLogoMapKey(networkId: number, serviceId: number): string {
         return `${networkId}_${serviceId}`;
@@ -214,6 +240,10 @@ export class Service {
     }
 
     private static async _saveLogoMap(): Promise<void> {
+        return this.withLogoWrite(() => this.writeLogoMap());
+    }
+
+    private static async writeLogoMap(): Promise<void> {
         const dirPath = dirname(LOGO_MAP_PATH);
         if (existsSync(dirPath) === false) {
             await mkdir(dirPath, { recursive: true });

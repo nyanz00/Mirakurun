@@ -104,6 +104,9 @@ export async function loadServer(): Promise<Server> {
     if (!config.allowIPv4CidrRanges) {
         config.allowIPv4CidrRanges = ["10.0.0.0/8", "127.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"];
     }
+    if (!config.updateAllowIPv4CidrRanges) {
+        config.updateAllowIPv4CidrRanges = ["127.0.0.1/32"];
+    }
     if (!config.allowIPv6CidrRanges) {
         config.allowIPv6CidrRanges = ["fc00::/7"];
     }
@@ -224,6 +227,22 @@ export async function loadServer(): Promise<Server> {
         }
 
         config.allowIPv4CidrRanges = validRanges;
+    }
+
+    // validate updateAllowIPv4CidrRanges
+    {
+        const validRanges: string[] = [];
+        for (const range of config.updateAllowIPv4CidrRanges) {
+            const [valid, errors] = ipnum.Validator.isValidIPv4CidrRange(range);
+            if (valid) {
+                validRanges.push(range);
+            } else {
+                for (const error of errors) {
+                    log.error("invalid server config property `updateAllowIPv4CidrRanges`: %s - %s", range, error);
+                }
+            }
+        }
+        config.updateAllowIPv4CidrRanges = validRanges;
     }
 
     // validate allowIPv6CidrRanges

@@ -592,6 +592,10 @@ definitions:
         type: array
         items:
           type: string
+      updateAllowIPv4CidrRanges:
+        type: array
+        items:
+          type: string
       allowIPv6CidrRanges:
         type: array
         items:
@@ -665,6 +669,94 @@ definitions:
         type: string
       branch:
         type: string
+
+  SystemUpdateRequest:
+    type: object
+    required: [target, preserveChanges]
+    properties:
+      target:
+        type: string
+        enum: [stable, develop, rollback]
+      preserveChanges:
+        type: boolean
+
+  SystemUpdateTarget:
+    type: object
+    properties:
+      label:
+        type: string
+      commit:
+        type: string
+      tag:
+        type: string
+      relation:
+        type: string
+        enum: [ahead, same, behind, diverged, unknown]
+      canApply:
+        type: boolean
+      reason:
+        type: string
+
+  SystemUpdateJob:
+    type: object
+    properties:
+      id:
+        type: string
+      target:
+        type: string
+      status:
+        type: string
+      stage:
+        type: string
+      message:
+        type: string
+      logs:
+        type: array
+        items:
+          type: string
+      restartRequired:
+        type: boolean
+      startedAt:
+        type: integer
+      finishedAt:
+        type: integer
+      stashCommit:
+        type: string
+
+  SystemUpdateInfo:
+    type: object
+    properties:
+      isGitRepository:
+        type: boolean
+      branch:
+        type: string
+      commit:
+        type: string
+      clean:
+        type: boolean
+      dirtyFiles:
+        type: array
+        items:
+          type: string
+      targets:
+        type: object
+        properties:
+          stable:
+            $ref: '#/definitions/SystemUpdateTarget'
+          develop:
+            $ref: '#/definitions/SystemUpdateTarget'
+          rollback:
+            $ref: '#/definitions/SystemUpdateTarget'
+      checkedAt:
+        type: integer
+      error:
+        type: string
+      job:
+        $ref: '#/definitions/SystemUpdateJob'
+      canManage:
+        type: boolean
+      canRestart:
+        type: boolean
 
   ChannelScanStatus:
     type: object
