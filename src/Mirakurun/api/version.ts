@@ -14,17 +14,15 @@
    limitations under the License.
 */
 import { Operation } from "express-openapi";
-import { execFile } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
-import { promisify } from "util";
 import * as api from "../api";
 import * as apid from "../../../api";
 import { getLatestVersion } from "../system";
 import * as log from "../log";
+import updateManager from "../update/UpdateManager";
 const pkg = require("../../../package.json");
 const rootDir = path.resolve(__dirname, "../../..");
-const execFileAsync = promisify(execFile);
 
 async function getCurrentBranch(): Promise<string | undefined> {
     if (!fs.existsSync(path.join(rootDir, ".git"))) {
@@ -32,13 +30,9 @@ async function getCurrentBranch(): Promise<string | undefined> {
     }
 
     try {
-        const { stdout } = await execFileAsync("git", ["branch", "--show-current"], {
-            cwd: rootDir,
-            timeout: 3000,
-            windowsHide: true
-        });
-        return stdout.trim() || undefined;
-    } catch (_) {
+        return await updateManager.getCurrentBranch() || undefined;
+    } catch (err) {
+        log.warn("failed to read current Git branch: %s", err);
         return undefined;
     }
 }

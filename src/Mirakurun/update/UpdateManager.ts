@@ -98,6 +98,10 @@ class UpdateManager {
         this.readState();
     }
 
+    async getCurrentBranch(): Promise<string | null> {
+        return (await this.git(["branch", "--show-current"])).trim() || null;
+    }
+
     async getInfo(force = false, bypassCooldown = false): Promise<UpdateInfo> {
         let branch: string | null = null;
         let commit: string | null = null;
@@ -108,7 +112,7 @@ class UpdateManager {
             isGitRepository = fs.existsSync(path.join(rootDir, ".git"));
             if (isGitRepository) {
                 await this.assertRepository();
-                branch = (await this.git(["branch", "--show-current"])).trim() || null;
+                branch = await this.getCurrentBranch();
                 commit = (await this.git(["rev-parse", "HEAD"])).trim();
                 dirtyFiles = (await this.git(["status", "--porcelain", "--untracked-files=normal", "--", ".", DATA_PATHSPEC]))
                     .split(/\r?\n/).filter(Boolean);
