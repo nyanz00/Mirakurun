@@ -30,7 +30,7 @@ export const AboutView: React.FC = () => {
     ui.setTitle("Mirakurun について");
 
     const [consented, setConsented] = useState<boolean>(false);
-    const { version } = useVersionInfo();
+    const { version } = useVersionInfo(true);
 
     const toolbar = (
         <Navbar className="toolbar">

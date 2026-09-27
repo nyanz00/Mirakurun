@@ -279,6 +279,7 @@ export interface ConfigServer {
     disableEITParsing?: boolean;
     disableWebUI?: boolean;
     allowIPv4CidrRanges?: string[];
+    updateAllowIPv4CidrRanges?: string[];
     allowIPv6CidrRanges?: string[];
     allowOrigins: string[];
     allowPNA: boolean;
@@ -392,6 +393,53 @@ export interface Version {
     current: string;
     latest: string;
     branch?: string;
+}
+
+export type SystemUpdateTargetName = "stable" | "develop" | "rollback";
+
+export interface SystemUpdateRequest {
+    target: SystemUpdateTargetName;
+    preserveChanges: boolean;
+}
+
+export interface SystemUpdateTarget {
+    label: string;
+    commit: string;
+    tag: string | null;
+    relation: "ahead" | "same" | "behind" | "diverged" | "unknown";
+    canApply: boolean;
+    reason: string | null;
+}
+
+export interface SystemUpdateJob {
+    id: string;
+    target: SystemUpdateTargetName;
+    status: "running" | "success" | "failed" | "rolled-back" | "rollback-failed";
+    stage: string;
+    message: string;
+    logs: string[];
+    restartRequired: boolean;
+    startedAt: number;
+    finishedAt: number | null;
+    stashCommit: string | null;
+}
+
+export interface SystemUpdateInfo {
+    isGitRepository: boolean;
+    branch: string | null;
+    commit: string | null;
+    clean: boolean;
+    dirtyFiles: string[];
+    targets: {
+        stable: SystemUpdateTarget | null;
+        develop: SystemUpdateTarget | null;
+        rollback: SystemUpdateTarget | null;
+    };
+    checkedAt: number | null;
+    error: string | null;
+    job: SystemUpdateJob | null;
+    canManage: boolean;
+    canRestart: boolean;
 }
 
 export interface Status {

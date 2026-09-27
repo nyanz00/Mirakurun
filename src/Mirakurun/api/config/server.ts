@@ -17,6 +17,9 @@ import { Operation } from "express-openapi";
 import * as api from "../../api";
 import * as apid from "../../../../api";
 import * as config from "../../config";
+import { isLoopbackAddress } from "../../update/access";
+
+let pendingSave: Promise<void> = Promise.resolve();
 
 export const get: Operation = async (req, res) => {
     res.status(200);
@@ -44,11 +47,32 @@ get.apiDoc = {
 
 export const put: Operation = async (req, res) => {
     const server: apid.ConfigServer = req.body;
+    if (!server || typeof server !== "object" || Array.isArray(server)) {
+        api.responseError(res, 400, "サーバー設定が不正です");
+        return;
+    }
 
-    await config.saveServer(server);
-
-    res.status(200);
-    api.responseJSON(res, server);
+    let release: () => void;
+    const previousSave = pendingSave;
+    pendingSave = new Promise<void>(resolve => release = resolve);
+    await previousSave;
+    try {
+        const current = await config.loadServer() as apid.ConfigServer;
+        if (!isLoopbackAddress(req.ip)) {
+            const submitted = server.updateAllowIPv4CidrRanges;
+            const existing = current.updateAllowIPv4CidrRanges;
+            if (submitted !== undefined && JSON.stringify(submitted) !== JSON.stringify(existing)) {
+                api.responseError(res, 403, "Web更新の許可IPはMirakurun本体のlocalhostからのみ変更できます");
+                return;
+            }
+            server.updateAllowIPv4CidrRanges = existing;
+        }
+        await config.saveServer(server);
+        res.status(200);
+        api.responseJSON(res, server);
+    } finally {
+        release();
+    }
 };
 
 put.apiDoc = {

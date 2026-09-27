@@ -29,8 +29,8 @@ let cachedVersion: VersionInfo | null = null;
 let isFetching = false;
 const fetchListeners: Array<(version: VersionInfo | null) => void> = [];
 
-const fetchVersion = async (): Promise<VersionInfo | null> => {
-    if (cachedVersion) {
+const fetchVersion = async (force = false): Promise<VersionInfo | null> => {
+    if (cachedVersion && !force) {
         return cachedVersion;
     }
     if (isFetching) {
@@ -40,10 +40,11 @@ const fetchVersion = async (): Promise<VersionInfo | null> => {
     }
     isFetching = true;
     try {
-        const res = await fetch("/api/version");
+        const res = await fetch("/api/version", { cache: "no-store" });
         if (res.ok) {
             const data: VersionInfo = await res.json();
             cachedVersion = data;
+            isFetching = false;
             const listeners = [...fetchListeners];
             fetchListeners.length = 0;
             listeners.forEach((resolve) => resolve(data));
@@ -59,14 +60,14 @@ const fetchVersion = async (): Promise<VersionInfo | null> => {
     return null;
 };
 
-export const useVersionInfo = (): { version: VersionInfo | null; loading: boolean } => {
+export const useVersionInfo = (refreshOnMount = false): { version: VersionInfo | null; loading: boolean } => {
     const [version, setVersion] = useState<VersionInfo | null>(cachedVersion);
     const [loading, setLoading] = useState<boolean>(!cachedVersion);
 
     useEffect(() => {
         let isMounted = true;
-        if (!cachedVersion) {
-            fetchVersion().then((data) => {
+        if (refreshOnMount || !cachedVersion) {
+            fetchVersion(refreshOnMount).then((data) => {
                 if (isMounted) {
                     setVersion(data);
                     setLoading(false);
