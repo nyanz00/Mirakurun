@@ -148,7 +148,7 @@ export const UpdateView: React.FC = () => {
                         {!info.canManage && <Callout intent="warning">この接続元IPからは更新・再起動を実行できません。サーバー設定の許可範囲を確認してください。</Callout>}
                         <div className="update-current">
                             <H5>現在</H5>
-                            <div>{forkVersion}{info.branch === "develop" ? " +dev" : ""}</div>
+                            <div>{forkVersion}</div>
                             <div className="bp5-text-muted">{info.branch || "detached HEAD"} / {info.commit?.slice(0, 8) || "不明"}</div>
                         </div>
                         {!info.clean && <Callout intent="warning">
