@@ -14,21 +14,41 @@
    limitations under the License.
 */
 import * as React from "react";
+import { useState } from "react";
 import { Button, Dialog, DialogBody, DialogFooter } from "@blueprintjs/core";
 
 export const Restart: React.FC<{
     isOpen: boolean;
     onClose: () => void;
 }> = ({ isOpen, onClose }) => {
-    const handleRestart = async () => {
-        await fetch("/api/restart", { method: "PUT" });
+    const [restarting, setRestarting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const handleClose = () => {
+        setError(null);
         onClose();
+    };
+
+    const handleRestart = async () => {
+        setRestarting(true);
+        setError(null);
+        try {
+            const response = await fetch("/api/restart", { method: "PUT" });
+            if (!response.ok) {
+                const failure = await response.json().catch(() => null) as { reason?: string } | null;
+                throw new Error(failure?.reason || `再起動に失敗しました (${response.status})`);
+            }
+            handleClose();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : String(err));
+        } finally {
+            setRestarting(false);
+        }
     };
 
     return (
         <Dialog
             isOpen={isOpen}
-            onClose={onClose}
+            onClose={handleClose}
             title="Restart Mirakurun"
             canEscapeKeyClose
         >
@@ -36,12 +56,13 @@ export const Restart: React.FC<{
                 <div>
                     Do you want to restart Mirakurun?
                 </div>
+                {error && <p className="bp5-text-danger" role="alert">{error}</p>}
             </DialogBody>
             <DialogFooter
                 actions={
                     <>
-                        <Button text="Cancel" onClick={onClose} />
-                        <Button text="Restart" intent="danger" onClick={handleRestart} />
+                        <Button text="Cancel" disabled={restarting} onClick={handleClose} />
+                        <Button text="Restart" intent="danger" loading={restarting} onClick={handleRestart} />
                     </>
                 }
             />
