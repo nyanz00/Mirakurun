@@ -1,5 +1,8 @@
 /node_modules
-/lib/tsconfig.tsbuildinfo
+/lib/*
+!/lib/client.js
+!/lib/client.d.ts
+!/lib/client.js.map
 /tmp
 /*.0x
 .env

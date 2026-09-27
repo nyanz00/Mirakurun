@@ -47,7 +47,9 @@ git branch --set-upstream-to=origin/nyanz-master nyanz-master
 git pull --ff-only
 ```
 
-以後、安定版は `nyanz-master` 上で `git pull --ff-only` できます。更新時は必要に応じて `npm install` と `npm run build` を実行し、Mirakurun を再起動してください。ZIP 展開で導入した環境では Git の履歴がないため、`git pull` は使えません。
+以後、安定版は `nyanz-master` 上で `git pull --ff-only` できます。更新後は `npm run build` を実行し、Mirakurun を再起動してください。依存関係が変わった場合はビルド前に `npm install` も実行してください。ZIP 展開で導入した環境では Git の履歴がないため、`git pull` は使えません。
+
+GitHub のタグ付きアーカイブをクライアントライブラリとして使えるよう、`lib/client.js` と型定義・ソースマップだけを Git に含めています。サーバーと Web UI のビルド成果物は含めないため、Mirakurun 本体として動かす際は上記のビルドが必要です。
 
 `package.json` のバージョンは本家 Mirakurun の番号を維持します。nyanz 版の番号は「Mirakurun について」の Current 欄と、安定版の Git タグで表します。開発版では Current 欄にだけ ` +dev` が付き、安定版では外れます。既存の `4.1.3-nyanz.1` タグは過去の形式として残し、次の安定版から画面表示とタグを一致させます。
 
