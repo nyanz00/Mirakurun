@@ -19,8 +19,9 @@ import updateManager, { UpdateTargetName } from "../../update/UpdateManager";
 import { canManageUpdate } from "../../update/access";
 
 export const get: Operation = async (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
     try {
-        const info = await updateManager.getInfo(req.query.refresh === "true");
+        const info = await updateManager.getInfo(String(req.query.refresh) === "true");
         api.responseJSON(res, {
             ...info,
             canManage: canManageUpdate(req.ip),

@@ -42,7 +42,7 @@ export const UpdateView: React.FC = () => {
 
     const refresh = useCallback(async (force = false) => {
         try {
-            const response = await fetch(`/api/system/update${force ? "?refresh=true" : ""}`);
+            const response = await fetch(`/api/system/update${force ? "?refresh=true" : ""}`, { cache: "no-store" });
             if (!response.ok) {
                 throw new Error(`更新情報を取得できませんでした (${response.status})`);
             }
