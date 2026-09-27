@@ -19,9 +19,10 @@ import { MenuItem } from "@blueprintjs/core";
 import * as semver from "semver";
 import { state } from "../modules/state";
 
-interface VersionInfo {
+export interface VersionInfo {
     current: string;
     latest: string;
+    branch?: string;
 }
 
 let cachedVersion: VersionInfo | null = null;
@@ -58,9 +59,7 @@ const fetchVersion = async (): Promise<VersionInfo | null> => {
     return null;
 };
 
-export const VersionStatus: React.FC<{
-    asMenuItem?: boolean;
-}> = ({ asMenuItem = false }) => {
+export const useVersionInfo = (): { version: VersionInfo | null; loading: boolean } => {
     const [version, setVersion] = useState<VersionInfo | null>(cachedVersion);
     const [loading, setLoading] = useState<boolean>(!cachedVersion);
 
@@ -80,6 +79,14 @@ export const VersionStatus: React.FC<{
             isMounted = false;
         };
     }, []);
+
+    return { version, loading };
+};
+
+export const VersionStatus: React.FC<{
+    asMenuItem?: boolean;
+}> = ({ asMenuItem = false }) => {
+    const { version, loading } = useVersionInfo();
 
     const hasUpdate = version
         && semver.valid(version.current)

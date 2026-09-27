@@ -391,6 +391,7 @@ export type ChannelScanResultType = (
 export interface Version {
     current: string;
     latest: string;
+    branch?: string;
 }
 
 export interface Status {
