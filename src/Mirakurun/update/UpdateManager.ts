@@ -77,6 +77,7 @@ const SHA_PATTERN = /^[0-9a-f]{40}$/i;
 const DATA_PATHSPEC = ":(exclude)data/**";
 const COMMAND_TIMEOUT = 30 * 60 * 1000;
 const REMOTE_CACHE_MS = 60 * 1000;
+const FORCE_REFRESH_COOLDOWN_MS = 5 * 1000;
 const DEPENDENCY_FILES = ["package.json", "package-lock.json", ".npmrc"];
 const rootDir = path.resolve(__dirname, "../../..");
 const updateDir = path.join(rootDir, "data", "update");
@@ -88,6 +89,7 @@ class UpdateManager {
     private remote: RemoteTargets | null = null;
     private remoteError: string | null = null;
     private refreshPromise: Promise<void> | null = null;
+    private lastRemoteRefreshAt = 0;
     private restartScheduled = false;
     private readonly gitExecutable: string;
 
@@ -96,7 +98,7 @@ class UpdateManager {
         this.readState();
     }
 
-    async getInfo(force = false): Promise<UpdateInfo> {
+    async getInfo(force = false, bypassCooldown = false): Promise<UpdateInfo> {
         let branch: string | null = null;
         let commit: string | null = null;
         let dirtyFiles: string[] = [];
@@ -110,7 +112,7 @@ class UpdateManager {
                 commit = (await this.git(["rev-parse", "HEAD"])).trim();
                 dirtyFiles = (await this.git(["status", "--porcelain", "--untracked-files=normal", "--", ".", DATA_PATHSPEC]))
                     .split(/\r?\n/).filter(Boolean);
-                await this.refreshRemote(force);
+                await this.refreshRemote(force, bypassCooldown);
                 error = this.remoteError;
             }
         } catch (err) {
@@ -149,7 +151,7 @@ class UpdateManager {
         }
         this.starting = true;
         try {
-            const info = await this.getInfo(true);
+            const info = await this.getInfo(true, true);
             const selected = info.targets[target];
             if (!info.isGitRepository || info.error !== null || selected === null || !selected.canApply) {
                 throw new Error(selected?.reason || info.error || "この更新先へ切り替えられません");
@@ -216,7 +218,7 @@ class UpdateManager {
                 this.writeState();
             }
             this.stage(job, "fetching", "nyanz版の更新先を取得しています");
-            await this.refreshRemote(true);
+            await this.refreshRemote(true, true);
             const info = await this.getInfo(false);
             const selected = info.targets[job.target];
             if (info.error !== null || selected === null || !selected.canApply || selected.commit !== requestedCommit) {
@@ -368,17 +370,21 @@ class UpdateManager {
         return { label, commit: target, tag, relation, canApply, reason };
     }
 
-    private async refreshRemote(force: boolean): Promise<void> {
-        if (!force && this.remote !== null && Date.now() - this.remote.checkedAt < REMOTE_CACHE_MS) {
-            return;
-        }
+    private async refreshRemote(force: boolean, bypassCooldown = false): Promise<void> {
         if (this.refreshPromise !== null) {
             return this.refreshPromise;
+        }
+        if (force && !bypassCooldown && Date.now() - this.lastRemoteRefreshAt < FORCE_REFRESH_COOLDOWN_MS) {
+            return;
+        }
+        if (!force && this.remote !== null && Date.now() - this.remote.checkedAt < REMOTE_CACHE_MS) {
+            return;
         }
         this.refreshPromise = this.fetchRemote();
         try {
             await this.refreshPromise;
         } finally {
+            this.lastRemoteRefreshAt = Date.now();
             this.refreshPromise = null;
         }
     }

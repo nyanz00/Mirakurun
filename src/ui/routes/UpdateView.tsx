@@ -64,8 +64,8 @@ export const UpdateView: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        const interval = info?.job?.status === "running" || restarting ? 2000 : 30000;
-        const timer = setInterval(() => void refresh(), interval);
+        const busy = info?.job?.status === "running" || restarting;
+        const timer = setInterval(() => void refresh(!busy), busy ? 2000 : 60 * 1000);
         return () => clearInterval(timer);
     }, [info?.job?.status, restarting, refresh]);
 

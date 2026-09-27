@@ -5,6 +5,29 @@ const manager = require("../lib/Mirakurun/update/UpdateManager").default;
 const updateRoute = require("../lib/Mirakurun/api/system/update");
 
 describe("Web update refresh", () => {
+    it("limits repeated forced checks to once per five seconds while allowing update preflight", async () => {
+        const previousFetchRemote = manager.fetchRemote;
+        const previousRefreshAt = manager.lastRemoteRefreshAt;
+        let fetches = 0;
+        manager.fetchRemote = async () => { fetches++; };
+        try {
+            manager.lastRemoteRefreshAt = Date.now();
+            await manager.refreshRemote(true);
+            assert.equal(fetches, 0);
+
+            manager.lastRemoteRefreshAt = Date.now() - 5001;
+            await manager.refreshRemote(true);
+            await manager.refreshRemote(true);
+            assert.equal(fetches, 1);
+
+            await manager.refreshRemote(true, true);
+            assert.equal(fetches, 2);
+        } finally {
+            manager.fetchRemote = previousFetchRemote;
+            manager.lastRemoteRefreshAt = previousRefreshAt;
+        }
+    });
+
     it("forces a GitHub check for a boolean or string refresh query", async () => {
         const previousConfig = shared.config.server;
         const previousGetInfo = manager.getInfo;

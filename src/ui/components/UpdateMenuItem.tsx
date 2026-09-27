@@ -39,7 +39,7 @@ export const UpdateMenuItem: React.FC = () => {
             }
         };
         void refresh();
-        const timer = setInterval(() => void refresh(), 30 * 1000);
+        const timer = setInterval(() => void refresh(), 60 * 1000);
         return () => {
             active = false;
             clearInterval(timer);
