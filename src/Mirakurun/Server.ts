@@ -49,6 +49,8 @@ export class Server {
     private _isRunning = false;
     private _servers = new Set<http.Server>();
     private _rpcs = new Set<RPCServer>();
+    private _tailscaleTimer?: NodeJS.Timeout;
+    private _tailscaleCheck?: Promise<void>;
 
     get isRunning() {
         return this._isRunning;
@@ -65,6 +67,7 @@ export class Server {
         this._isRunning = true;
 
         const serverConfig = _.config.server;
+        const waitForTailscale = serverConfig.waitForTailscale === true && !this.testMode && typeof serverConfig.port === "number";
 
         const addresses: string[] = [];
 
@@ -76,8 +79,8 @@ export class Server {
             if (!this.testMode) {
                 while (true) {
                     try {
-                        const systemIPv4s = system.getIPv4AddressesForListen();
-                        if (systemIPv4s.length > 0) {
+                        const systemIPv4s = system.getIPv4AddressesForListen(waitForTailscale);
+                        if (systemIPv4s.length > 0 || waitForTailscale) {
                             addresses.push(...systemIPv4s);
                             break;
                         }
@@ -257,12 +260,22 @@ export class Server {
         initRPCNotifier(this._rpcs);
 
         log.info("RPC interface is enabled");
+        if (waitForTailscale && this._isRunning) {
+            this._startTailscaleCheck(app, serverConfig.port);
+            await this._tailscaleCheck;
+        }
     }
 
     async deinit() {
         if (this._isRunning === false) {
             return;
         }
+
+        this._isRunning = false;
+        clearTimeout(this._tailscaleTimer);
+        this._tailscaleTimer = undefined;
+        await this._tailscaleCheck;
+        this._tailscaleCheck = undefined;
 
         for (const rpc of this._rpcs) {
             await rpc.close();
@@ -277,6 +290,60 @@ export class Server {
         this._servers.clear();
 
         this._isRunning = false;
+    }
+
+    private _startTailscaleCheck(app: express.Express, port: number) {
+        this._tailscaleCheck = this._checkTailscale(app, port);
+    }
+
+    private async _checkTailscale(app: express.Express, port: number) {
+        let listening = false;
+        try {
+            for (const address of system.getTailscaleIPv4AddressesForListen()) {
+                if (!this._isRunning) {
+                    return;
+                }
+                if ([...this._servers].some(server => {
+                    const bound = server.address();
+                    return bound && typeof bound !== "string" && bound.address === address;
+                })) {
+                    listening = true;
+                    break;
+                }
+                const server = http.createServer(app);
+                server.timeout = 1000 * 15;
+                try {
+                    await new Promise<void>((resolve, reject) => {
+                        server.once("error", reject);
+                        server.listen(port, address, () => {
+                            server.removeListener("error", reject);
+                            resolve();
+                        });
+                    });
+                    this._servers.add(server);
+                    this._rpcs.add(createRPCServer(server));
+                    listening = true;
+                    log.info("Tailscale listening on http://%s:%d; startup checks stopped", address, port);
+                    break;
+                } catch (error) {
+                    this._servers.delete(server);
+                    if (server.listening) {
+                        await new Promise<void>(resolve => server.close(() => resolve()));
+                    }
+                    log.warn("Tailscale listen failed on %s:%d; retrying in 30 seconds: %s", address, port, error);
+                }
+            }
+        } catch (error) {
+            log.warn("Tailscale interface check failed; retrying in 30 seconds: %s", error);
+        } finally {
+            if (this._isRunning && !listening) {
+                this._tailscaleTimer = setTimeout(() => {
+                    this._tailscaleTimer = undefined;
+                    this._startTailscaleCheck(app, port);
+                }, 30000);
+                this._tailscaleTimer.unref();
+            }
+        }
     }
 }
 

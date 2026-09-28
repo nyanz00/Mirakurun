@@ -266,6 +266,7 @@ export interface ConfigServer {
     port?: number;
     hostname?: string;
     disableIPv6?: boolean;
+    waitForTailscale?: boolean;
     logLevel?: LogLevel;
     maxLogHistory?: number;
     jobMaxRunning?: number;

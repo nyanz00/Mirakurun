@@ -556,6 +556,10 @@ definitions:
         type: string
       disableIPv6:
         type: boolean
+      waitForTailscale:
+        type: boolean
+        default: false
+        description: Retry listening on the Tailscale IPv4 interface every 30 seconds until successful. Requires restart.
       logLevel:
         type: integer
         minimum: -1

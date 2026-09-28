@@ -21,11 +21,24 @@ import { IPv4Prefix, IPv6Prefix } from "ip-num/Prefix";
 import { IPv4CidrRange, IPv6CidrRange } from "ip-num/IPRange";
 import _ from "./_";
 
-export function getIPv4AddressesForListen(): string[] {
+function isTailscaleInterface(name: string): boolean {
+    return /^(tailscale|tailscale0)$/i.test(name);
+}
+
+export function getTailscaleIPv4AddressesForListen(): string[] {
+    const interfaces = os.networkInterfaces();
+    return [...new Set(Object.keys(interfaces)
+        .filter(isTailscaleInterface)
+        .flatMap(name => (interfaces[name] || [])
+            .filter(address => address.family === "IPv4" && !address.internal && isPermittedIPAddress(address.address))
+            .map(address => address.address)))];
+}
+
+export function getIPv4AddressesForListen(excludeTailscale = false): string[] {
     const addresses = [];
 
     const interfaces = os.networkInterfaces();
-    Object.keys(interfaces).forEach(k => {
+    Object.keys(interfaces).filter(name => !excludeTailscale || !isTailscaleInterface(name)).forEach(k => {
         interfaces[k]
             .filter(a => {
                 return (

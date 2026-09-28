@@ -101,6 +101,9 @@ export async function loadServer(): Promise<Server> {
     const config: Writable<Server> = await load("server", path);
 
     // set default
+    if (typeof config.waitForTailscale !== "boolean") {
+        config.waitForTailscale = false;
+    }
     if (!config.allowIPv4CidrRanges) {
         config.allowIPv4CidrRanges = ["10.0.0.0/8", "127.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"];
     }
