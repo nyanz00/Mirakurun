@@ -67,6 +67,8 @@ Git clone 環境では、歯車メニューの「バージョン管理」から 
 
 ## 設定ファイル
 
+Remote 接続管理の設定・確認方法は [Remote Mirakurun の接続管理](Remote.ja.md) を参照してください。
+
 初期設定は `data\config\` に配置します。
 
 - `data\config\server.yml`

@@ -24,6 +24,7 @@ import Queue from "promise-queue";
 import * as apid from "../../api";
 import * as log from "./log";
 import { isValidCronExpression } from "./Job";
+import { validateRemoteConfig, publicServerConfig } from "./remote/config";
 
 type Writable<T> = { -readonly [K in keyof T]: T[K] };
 
@@ -99,6 +100,7 @@ export async function loadServer(): Promise<Server> {
         }
     }
     const config: Writable<Server> = await load("server", path);
+    validateRemoteConfig(config);
 
     // set default
     if (typeof config.waitForTailscale !== "boolean") {
@@ -190,7 +192,7 @@ export async function loadServer(): Promise<Server> {
             config.tsplayEndpoint = TSPLAY_ENDPOINT.trim();
         }
 
-        log.info("load server config (merged w/ env): %s", JSON.stringify(config));
+        log.info("load server config (merged w/ env): %s", JSON.stringify(publicServerConfig(config as Server)));
     }
 
     if (!config.hostname) {

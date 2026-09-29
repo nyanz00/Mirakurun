@@ -30,6 +30,7 @@ import * as system from "./system";
 import regexp from "./regexp";
 import _ from "./_";
 import { createRPCServer, initRPCNotifier } from "./rpc";
+import remoteManager from "./remote/RemoteManager";
 
 const pkg = require("../../package.json");
 const fsRoutesModule = require("fs-routes");
@@ -260,6 +261,7 @@ export class Server {
         initRPCNotifier(this._rpcs);
 
         log.info("RPC interface is enabled");
+        remoteManager.start();
         if (waitForTailscale && this._isRunning) {
             this._startTailscaleCheck(app, serverConfig.port);
             await this._tailscaleCheck;
@@ -273,6 +275,7 @@ export class Server {
 
         this._isRunning = false;
         clearTimeout(this._tailscaleTimer);
+        await remoteManager.stop();
         this._tailscaleTimer = undefined;
         await this._tailscaleCheck;
         this._tailscaleCheck = undefined;

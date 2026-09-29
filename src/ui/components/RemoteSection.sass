@@ -1,0 +1,35 @@
+.remote-section
+  display: flex
+  flex-direction: column
+  gap: 12px
+
+.remote-toolbar
+  display: flex
+  align-items: center
+  flex-wrap: wrap
+  gap: 8px
+
+.remote-machine
+  padding: 12px
+  border: 1px solid rgba(128, 128, 128, 0.3)
+  border-radius: 4px
+  overflow-wrap: anywhere
+
+  details, .remote-times
+    margin-top: 8px
+
+.remote-config-dialog
+  width: min(840px, calc(100vw - 32px))
+
+  .bp5-dialog-body
+    max-height: 70vh
+    overflow-y: auto
+
+  .remote-config-grid
+    display: grid
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr))
+    gap: 8px
+    margin-bottom: 12px
+
+    .bp5-html-select, select
+      max-width: 100%

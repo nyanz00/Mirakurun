@@ -38,6 +38,7 @@ import * as ui from "../modules/ui";
 import { Service, Status, StreamInfo, TunerDevice } from "../../../api.d";
 
 import "./HomeView.sass";
+import { RemoteSection } from "../components/RemoteSection";
 
 const summarizeStreamInfo = (streamInfo: StreamInfo): string => {
     if (!streamInfo) {
@@ -575,6 +576,9 @@ export const HomeView: React.FC = () => {
                         <div className="home-section-content">
                             <TunersSection tuners={tuners} />
                         </div>
+                    </Section>
+                    <Section className="home-section" title="Remote" icon="exchange" compact>
+                        <div className="home-section-content"><RemoteSection /></div>
                     </Section>
                 </div>
             </div>

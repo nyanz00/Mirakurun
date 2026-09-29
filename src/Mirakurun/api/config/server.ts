@@ -17,13 +17,14 @@ import { Operation } from "express-openapi";
 import * as api from "../../api";
 import * as apid from "../../../../api";
 import * as config from "../../config";
-import { isLoopbackAddress } from "../../update/access";
+import { isLoopbackAddress, canManageUpdate } from "../../update/access";
+import { publicServerConfig, validateRemoteConfig, resolveRemoteTuner } from "../../remote/config";
 
 let pendingSave: Promise<void> = Promise.resolve();
 
 export const get: Operation = async (req, res) => {
     res.status(200);
-    api.responseJSON(res, await config.loadServer() as apid.ConfigServer);
+    api.responseJSON(res, publicServerConfig(await config.loadServer() as apid.ConfigServer));
 };
 
 get.apiDoc = {
@@ -58,6 +59,28 @@ export const put: Operation = async (req, res) => {
     await previousSave;
     try {
         const current = await config.loadServer() as apid.ConfigServer;
+        delete server.remoteDiscordWebhookConfigured;
+        for (const field of ["remoteMirakuruns", "remoteManagementEnabled", "remoteAutoRestart", "remoteDiscordWebhook"]) {
+            if (server[field] === undefined) {
+                server[field] = current[field];
+            }
+            if (JSON.stringify(server[field]) !== JSON.stringify(current[field]) && !canManageUpdate(req.ip)) {
+                api.responseError(res, 403, "Remote設定の変更にはWeb更新と同じ管理権限が必要です");
+                return;
+            }
+        }
+        try {
+            validateRemoteConfig(server);
+            if (JSON.stringify(server.remoteMirakuruns) !== JSON.stringify(current.remoteMirakuruns)) {
+                const tuners = await config.loadTuners();
+                for (const tuner of tuners) {
+                    resolveRemoteTuner(tuner, server);
+                }
+            }
+        } catch (error) {
+            api.responseError(res, 400, error.message);
+            return;
+        }
         if (!isLoopbackAddress(req.ip)) {
             const submitted = server.updateAllowIPv4CidrRanges;
             const existing = current.updateAllowIPv4CidrRanges;
@@ -69,7 +92,7 @@ export const put: Operation = async (req, res) => {
         }
         await config.saveServer(server);
         res.status(200);
-        api.responseJSON(res, server);
+        api.responseJSON(res, publicServerConfig(server));
     } finally {
         release();
     }

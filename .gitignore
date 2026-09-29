@@ -1,5 +1,6 @@
 /node_modules
 /data/update/
+/data/remote/
 /lib/*
 !/lib/client.js
 !/lib/client.d.ts

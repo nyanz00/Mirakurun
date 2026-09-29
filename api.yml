@@ -15,6 +15,117 @@ paths: {}
 
 definitions:
 
+  RemoteMirakurun:
+    type: object
+    required: [id, name, role, host]
+    properties:
+      id:
+        type: string
+        pattern: '^[a-zA-Z0-9_-]{1,64}$'
+      name:
+        type: string
+        minLength: 1
+        maxLength: 100
+      role:
+        type: string
+        enum: [parent, child]
+      host:
+        type: string
+        maxLength: 253
+      port:
+        type: integer
+        minimum: 1
+        maximum: 65535
+        default: 40772
+
+  RemoteRecoveryStatus:
+    type: object
+    properties:
+      enabled:
+        type: boolean
+      supported:
+        type: boolean
+      blocked:
+        type: boolean
+      incidentAttempts:
+        type: integer
+      nextAllowedAt:
+        type: number
+      error:
+        type: string
+      history:
+        type: array
+        items:
+          type: object
+          properties:
+            at:
+              type: number
+            reason:
+              type: string
+
+  RemotePeerStatus:
+    allOf:
+      - $ref: '#/definitions/RemoteMirakurun'
+      - type: object
+        properties:
+          state:
+            type: string
+            enum: [unknown, online, suspect, offline, error]
+          checkedAt:
+            type: number
+            x-nullable: true
+          lastSuccess:
+            type: number
+            x-nullable: true
+          inboundAt:
+            type: number
+            x-nullable: true
+          failures:
+            type: integer
+          error:
+            type: string
+            x-nullable: true
+          ping:
+            type: string
+            enum: [unknown, ok, failed]
+          streamState:
+            type: string
+            enum: [idle, starting, receiving, failed]
+          streamError:
+            type: string
+            x-nullable: true
+          recovery:
+            type: string
+          remoteRecovery:
+            $ref: '#/definitions/RemoteRecoveryStatus'
+          lastRequest:
+            type: object
+            properties:
+              id:
+                type: string
+              stage:
+                type: string
+              at:
+                type: number
+
+  RemoteStatus:
+    type: object
+    properties:
+      enabled:
+        type: boolean
+      canManage:
+        type: boolean
+      peers:
+        type: array
+        items:
+          $ref: '#/definitions/RemotePeerStatus'
+      recovery:
+        $ref: '#/definitions/RemoteRecoveryStatus'
+      notificationError:
+        type: string
+        x-nullable: true
+
+
   # common --------------------------------------------------------------------
 
   Error:
@@ -560,6 +671,23 @@ definitions:
         type: boolean
         default: false
         description: Retry listening on the Tailscale IPv4 interface every 30 seconds until successful. Requires restart.
+      remoteManagementEnabled:
+        type: boolean
+        description: Optional peer monitoring. Disabled when not configured.
+      remoteMirakuruns:
+        type: array
+        maxItems: 32
+        items:
+          $ref: '#/definitions/RemoteMirakurun'
+      remoteAutoRestart:
+        type: boolean
+        description: Optional child service recovery. Disabled when not configured.
+      remoteDiscordWebhook:
+        type: string
+        description: Write-only Discord webhook URL. Omit to preserve; empty string removes it.
+      remoteDiscordWebhookConfigured:
+        type: boolean
+        description: Response indicator. Ignored on update; safe to round-trip with existing config editors.
       logLevel:
         type: integer
         minimum: -1
@@ -628,6 +756,9 @@ definitions:
         type: string
       remoteMirakurunHost:
         type: string
+      remoteMirakurunId:
+        type: string
+        description: Registered child machine ID. Mutually exclusive with direct host and port.
       remoteMirakurunPort:
         type: integer
       remoteMirakurunDecoder:

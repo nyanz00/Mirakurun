@@ -261,7 +261,54 @@ export type EventResource = "program" | "service" | "tuner" | "job" | "job_sched
 
 export type EventType = "create" | "update" | "remove";
 
+export interface RemoteMirakurun {
+    id: string;
+    name: string;
+    role: "parent" | "child";
+    host: string;
+    port?: number;
+}
+
+export interface RemotePeerStatus extends RemoteMirakurun {
+    state: "unknown" | "online" | "suspect" | "offline" | "error";
+    checkedAt: number | null;
+    lastSuccess: number | null;
+    inboundAt: number | null;
+    failures: number;
+    error: string | null;
+    ping: "unknown" | "ok" | "failed";
+    streamState: "idle" | "starting" | "receiving" | "failed";
+    streamError: string | null;
+    recovery: string;
+    lastRequest?: { id: string; stage: string; at: number };
+    remoteRecovery?: RemoteRecoveryStatus;
+}
+
+export interface RemoteRecoveryStatus {
+    enabled: boolean;
+    supported: boolean;
+    blocked: boolean;
+    incidentAttempts: number;
+    nextAllowedAt: number;
+    history: { at: number; reason: string }[];
+    error?: string;
+}
+
+export interface RemoteStatus {
+    enabled: boolean;
+    canManage?: boolean;
+    peers: RemotePeerStatus[];
+    recovery: RemoteRecoveryStatus;
+    notificationError: string | null;
+}
+
 export interface ConfigServer {
+    remoteManagementEnabled?: boolean;
+    remoteMirakuruns?: RemoteMirakurun[];
+    remoteAutoRestart?: boolean;
+    remoteDiscordWebhook?: string;
+    /** Read-only indication; webhook itself is omitted from API responses. */
+    remoteDiscordWebhookConfigured?: boolean;
     path?: string;
     port?: number;
     hostname?: string;
@@ -299,6 +346,7 @@ export type LogLevel = -1 | 0 | 1 | 2 | 3;
 export type ConfigTuners = ConfigTunersItem[];
 
 export interface ConfigTunersItem {
+    remoteMirakurunId?: string;
     /** tuner name for identifying. */
     name: string;
     /** channel type. */

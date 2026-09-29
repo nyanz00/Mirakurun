@@ -27,6 +27,7 @@ import Event from "./Event";
 import ChannelItem from "./ChannelItem";
 import TSFilter from "./TSFilter";
 import Client, { ProgramsQuery } from "../client";
+import remoteManager from "./remote/RemoteManager";
 
 interface User extends common.User {
     _stream?: TSFilter;
@@ -187,10 +188,10 @@ export default class TunerDevice extends EventEmitter {
                     }
 
                     await this._kill(true);
-                    this._spawn(channel);
+                    this._spawn(channel, user.priority);
                 }
             } else {
-                this._spawn(channel);
+                this._spawn(channel, user.priority);
             }
         }
 
@@ -198,6 +199,7 @@ export default class TunerDevice extends EventEmitter {
 
         user._stream = stream;
         this._users.add(user);
+        this._updateRemotePriority();
         if (stream.closed === true) {
             this.endStream(user);
         } else {
@@ -212,6 +214,7 @@ export default class TunerDevice extends EventEmitter {
 
         user._stream.end();
         this._users.delete(user);
+        this._updateRemotePriority();
 
         if (this._users.size === 0) {
             setTimeout(() => {
@@ -295,7 +298,13 @@ export default class TunerDevice extends EventEmitter {
         }
     }
 
-    private _spawn(ch: ChannelItem): void {
+    private _updateRemotePriority(): void {
+        if (this._isRemote && this._process?.connected && this._users.size > 0) {
+            this._process.send({ type: "priority", priority: Math.max(0, this.getPriority()) }, () => undefined);
+        }
+    }
+
+    private _spawn(ch: ChannelItem, priority = Math.max(0, this.getPriority())): void {
         log.debug("TunerDevice#%d spawn...", this._index);
 
         if (this._process) {
@@ -310,6 +319,7 @@ export default class TunerDevice extends EventEmitter {
             cmd += " " + (this._config.remoteMirakurunPort || 40772);
             cmd += " " + common.getTuningChannelType(ch.type);
             cmd += " " + ch.channel;
+            cmd += " priority=" + Math.max(0, priority);
             if (this._config.remoteMirakurunDecoder === true) {
                 cmd += " decode";
             }
@@ -328,7 +338,16 @@ export default class TunerDevice extends EventEmitter {
 
         const parsed = common.parseCommandForSpawn(cmd);
 
-        this._process = child_process.spawn(parsed.command, parsed.args);
+        this._process = child_process.spawn(parsed.command, parsed.args,
+            this._isRemote ? { stdio: ["pipe", "pipe", "pipe", "ipc"], windowsHide: true } : {});
+        if (this._isRemote) {
+            this._process.on("message", (message: any) => {
+                if (message?.remote) {
+                    remoteManager.streamEvent(this._config.remoteMirakurunHost, this._config.remoteMirakurunPort || 40772,
+                        String(this._index), message.remote);
+                }
+            });
+        }
         this._command = cmd;
         this._channel = ch;
         this._isAvailable = true;
@@ -458,6 +477,10 @@ export default class TunerDevice extends EventEmitter {
     }
 
     private _release(): void {
+        if (this._isRemote) {
+            remoteManager.streamEvent(this._config.remoteMirakurunHost, this._config.remoteMirakurunPort || 40772,
+                String(this._index), { state: "idle" });
+        }
         if (this._process) {
             this._process.stderr.removeAllListeners();
             this._process.removeAllListeners();

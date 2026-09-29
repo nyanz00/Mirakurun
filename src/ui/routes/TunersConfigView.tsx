@@ -29,12 +29,13 @@ import {
     NonIdealState,
     Spinner,
     Switch,
-    HTMLTable
+    HTMLTable,
+    HTMLSelect,
+    Callout
 } from "@blueprintjs/core";
 import equal from "fast-deep-equal";
-import { state } from "../modules/state";
 import * as ui from "../modules/ui";
-import { ConfigTuners, ConfigTunersItem, ChannelType } from "../../../api.d";
+import { ConfigTuners, ConfigTunersItem, ChannelType, RemoteMirakurun } from "../../../api.d";
 
 import "./TunersConfigView.sass";
 
@@ -59,6 +60,10 @@ export const TunersConfigView: React.FC = () => {
     const [showSaveDialog, setShowSaveDialog] = useState(false);
     const [saved, setSaved] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [remoteMachines, setRemoteMachines] = useState<RemoteMirakurun[]>([]);
+    const [saveError, setSaveError] = useState("");
+    const [loadError, setLoadError] = useState("");
+    const [reload, setReload] = useState(0);
 
     ui.setTitle("チューナー設定", isLoading);
 
@@ -71,19 +76,32 @@ export const TunersConfigView: React.FC = () => {
             return;
         }
 
+        let disposed = false;
+        const controller = new AbortController();
+        setIsLoading(true);
+        setLoadError("");
         (async () => {
             try {
-                const res = await (await fetch(configAPI)).json();
-                console.log("TunersConfigView", "GET", configAPI, "->", res);
+                const [response, serverResponse] = await Promise.all([
+                    fetch(configAPI, { signal: controller.signal }),
+                    fetch("/api/config/server", { signal: controller.signal })
+                ]);
+                if (!response.ok || !serverResponse.ok) throw new Error("設定を取得できませんでした。");
+                const [res, serverConfig] = await Promise.all([response.json(), serverResponse.json()]);
+                if (disposed) return;
                 setEditing(JSON.parse(JSON.stringify(res)));
                 setCurrent(JSON.parse(JSON.stringify(res)));
+                setRemoteMachines((serverConfig.remoteMirakuruns || []).filter(peer => peer.role === "child"));
                 setIsLoading(false);
             } catch (e) {
-                console.error(e);
-                setIsLoading(false);
+                if (!disposed) {
+                    setLoadError("チューナー設定・接続先マシンの取得に失敗しました。");
+                    setIsLoading(false);
+                }
             }
         })();
-    }, [saved]);
+        return () => { disposed = true; controller.abort(); };
+    }, [saved, reload]);
 
     const hasChanges = editing !== null && current !== null && !equal(editing, current);
 
@@ -101,13 +119,19 @@ export const TunersConfigView: React.FC = () => {
         setShowSaveDialog(false);
         try {
             console.log("TunersConfigView", "PUT", configAPI, "<-", editing);
-            await fetch(configAPI, {
+            const response = await fetch(configAPI, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json; charset=utf-8" },
                 body: JSON.stringify(editing)
             });
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.reason || `HTTP ${response.status}`);
+            }
+            setSaveError("");
             setSaved(true);
         } catch (err) {
+            setSaveError(err.message);
             console.error(err);
         }
     };
@@ -209,14 +233,15 @@ export const TunersConfigView: React.FC = () => {
         </Navbar>
     );
 
-    if (isLoading || !editing) {
+    if (isLoading || !editing || loadError) {
         return (
             <div className="route" id="route-tuners-config-view">
                 {toolbar}
                 <NonIdealState
-                    icon={<Spinner />}
-                    title="ロード中"
-                    description="設定を読み込んでいます..."
+                    icon={loadError ? "error" : <Spinner />}
+                    title={loadError ? "設定取得エラー" : "ロード中"}
+                    description={loadError || "設定を読み込んでいます..."}
+                    action={loadError && <Button onClick={() => setReload(value => value + 1)}>再試行</Button>}
                 />
             </div>
         );
@@ -227,6 +252,7 @@ export const TunersConfigView: React.FC = () => {
             {toolbar}
 
             <div className="content">
+                {saveError && <Callout intent="danger">{saveError}</Callout>}
                 <HTMLTable className="tuner-table" striped interactive>
                     <thead>
                         <tr>
@@ -283,7 +309,21 @@ export const TunersConfigView: React.FC = () => {
                                 </td>
                                 <td>
                                     <div className="tuner-options-grid">
-                                        {!tuner.remoteMirakurunHost && (
+                                        <FormGroup label="接続先マシン" helperText="HomeのRemoteで登録した子機を選択できます。">
+                                            <HTMLSelect value={tuner.remoteMirakurunId || ""} onChange={e => {
+                                                const id = e.target.value;
+                                                updateTuner(i, id ? {
+                                                    remoteMirakurunId: id, remoteMirakurunHost: undefined,
+                                                    remoteMirakurunPort: undefined, command: undefined, dvbDevicePath: undefined
+                                                } : { remoteMirakurunId: undefined });
+                                            }}>
+                                                <option value="">直接指定・ローカルチューナー</option>
+                                                {remoteMachines.map(peer => <option key={peer.id} value={peer.id}>{peer.name} ({peer.host}:{peer.port || 40772})</option>)}
+                                                {tuner.remoteMirakurunId && !remoteMachines.some(peer => peer.id === tuner.remoteMirakurunId) &&
+                                                    <option value={tuner.remoteMirakurunId}>未登録: {tuner.remoteMirakurunId}</option>}
+                                            </HTMLSelect>
+                                        </FormGroup>
+                                        {!tuner.remoteMirakurunHost && !tuner.remoteMirakurunId && (
                                             <>
                                                 <FormGroup label="Command">
                                                     <InputGroup
@@ -313,9 +353,9 @@ export const TunersConfigView: React.FC = () => {
                                                 </FormGroup>
                                             </>
                                         )}
-                                        {!tuner.command && (
+                                        {(!tuner.command || tuner.remoteMirakurunHost || tuner.remoteMirakurunId) && (
                                             <>
-                                                <div className="remote-mirakurun-group">
+                                                {!tuner.remoteMirakurunId && <div className="remote-mirakurun-group">
                                                     <FormGroup label="Remote Mirakurun Host" style={{ flex: 1 }}>
                                                         <InputGroup
                                                             value={tuner.remoteMirakurunHost || ""}
@@ -323,7 +363,7 @@ export const TunersConfigView: React.FC = () => {
                                                                 const val = e.target.value;
                                                                 if (val === "") {
                                                                     deleteTunerProperty(i, "remoteMirakurunHost");
-                                                                } else if (/^[0-9a-z\.]+$/.test(val)) {
+                                                                } else if (/^[0-9a-z.:-]+$/i.test(val)) {
                                                                     updateTuner(i, { remoteMirakurunHost: val });
                                                                 }
                                                             }}
@@ -346,7 +386,7 @@ export const TunersConfigView: React.FC = () => {
                                                             }}
                                                         />
                                                     </FormGroup>
-                                                </div>
+                                                </div>}
                                                 <div style={{ marginBottom: "8px" }}>
                                                     <Checkbox
                                                         label="Decode (Remote Mirakurun Decoder)"
@@ -362,7 +402,7 @@ export const TunersConfigView: React.FC = () => {
                                                 </div>
                                             </>
                                         )}
-                                        {(!tuner.remoteMirakurunHost || !tuner.remoteMirakurunDecoder) && (
+                                        {(!(tuner.remoteMirakurunHost || tuner.remoteMirakurunId) || !tuner.remoteMirakurunDecoder) && (
                                             <FormGroup label="Decoder">
                                                 <InputGroup
                                                     value={tuner.decoder || ""}

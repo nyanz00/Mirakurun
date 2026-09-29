@@ -22,15 +22,8 @@ export interface Error {
 }
 
 export function responseError(res: express.Response, code: number, reason?: string): express.Response {
-    if (reason) {
-        res.writeHead(code, reason, {
-            "Content-Type": "application/json"
-        });
-    } else {
-        res.writeHead(code, {
-            "Content-Type": "application/json"
-        });
-    }
+    // Error details may contain Japanese text; HTTP reason phrases cannot.
+    res.writeHead(code, { "Content-Type": "application/json; charset=utf-8" });
 
     const error: Error = {
         code: code,
