@@ -41,15 +41,6 @@ if (!isWindows && isRoot) {
 
 process.title = "Mirakurun: Server";
 
-process.on("uncaughtException", err => {
-    ++status.errorCount.uncaughtException;
-    console.error(err.stack);
-});
-process.on("unhandledRejection", err => {
-    ++status.errorCount.unhandledRejection;
-    console.error(err);
-});
-
 function setEnv(name: string, value: string) {
     process.env[name] = process.env[name] || value;
 }
@@ -143,6 +134,16 @@ import Program from "./Mirakurun/Program";
 import Server from "./Mirakurun/Server";
 import * as config from "./Mirakurun/config";
 import * as log from "./Mirakurun/log";
+
+// Bootstrap failures must reach Node's default handler before status is available.
+process.on("uncaughtException", err => {
+    ++status.errorCount.uncaughtException;
+    console.error(err.stack);
+});
+process.on("unhandledRejection", err => {
+    ++status.errorCount.unhandledRejection;
+    console.error(err);
+});
 
 (async function top() {
     _.config.server = await config.loadServer();
