@@ -1,9 +1,8 @@
 services:
   mirakurun:
-    # `latest` can be changed to fix the version
-    # `latest` の部分を編集するとバージョンを固定できます
-    # available tags: https://hub.docker.com/r/chinachu/mirakurun/tags
-    image: chinachu/mirakurun:${MIRAKURUN_IMAGE_TAG:-latest}
+    # Build this local fork before starting the service.
+    # 起動前にこのフォークのイメージをビルドしてください。
+    image: mirakurun-nyanz:local
 
     # 環境変数
     environment:

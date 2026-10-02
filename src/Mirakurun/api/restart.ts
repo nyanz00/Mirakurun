@@ -17,9 +17,10 @@ import { Operation } from "express-openapi";
 import { spawn } from "child_process";
 import * as api from "../api";
 import { canManageUpdate } from "../update/access";
+import { canRestartService, restartService } from "../service-process";
 
 export const put: Operation = (req, res) => {
-    if (process.platform === "win32" && process.env.USING_WINSER === "1") {
+    if (canRestartService()) {
         if (!canManageUpdate(req.ip)) {
             api.responseError(res, 403, "この接続元から再起動できません");
             return;
@@ -27,7 +28,7 @@ export const put: Operation = (req, res) => {
         res.setHeader("Content-Type", "application/json; charset=utf-8");
         res.status(202);
         res.end(JSON.stringify({ accepted: true }));
-        setTimeout(() => process.exit(0), 500);
+        setTimeout(restartService, 500);
     } else if (process.env.pm_uptime) {
         const cmd = spawn("mirakurun", ["restart"], {
             detached: true,

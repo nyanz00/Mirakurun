@@ -17,6 +17,7 @@ import { Operation } from "express-openapi";
 import * as api from "../../api";
 import updateManager, { UpdateTargetName } from "../../update/UpdateManager";
 import { canManageUpdate } from "../../update/access";
+import { canRestartService } from "../../service-process";
 
 export const get: Operation = async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
@@ -25,7 +26,7 @@ export const get: Operation = async (req, res) => {
         api.responseJSON(res, {
             ...info,
             canManage: canManageUpdate(req.ip),
-            canRestart: process.platform === "win32" && process.env.USING_WINSER === "1"
+            canRestart: canRestartService()
         });
     } catch (err) {
         api.responseError(res, 500, err instanceof Error ? err.message : String(err));

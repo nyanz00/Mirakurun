@@ -21,32 +21,4 @@ if (process.platform !== "win32") {
     process.exit(1);
 }
 
-const path = require("path");
-
-const rootDir = path.resolve(__dirname, "..");
-const configDir = path.join(rootDir, "data", "config");
-const dataDir = path.join(rootDir, "data", "db");
-const portable = process.env.MIRAKURUN_PORTABLE !== "0";
-
-console.log("rootDir:", rootDir);
-console.log("configDir:", configDir);
-console.log("dataDir:", dataDir);
-
-setEnv("SERVER_CONFIG_PATH", path.join(configDir, "server.yml"), portable);
-setEnv("TUNERS_CONFIG_PATH", path.join(configDir, "tuners.yml"), portable);
-setEnv("CHANNELS_CONFIG_PATH", path.join(configDir, "channels.yml"), portable);
-setEnv("SERVICES_DB_PATH", path.join(dataDir, "services.json"), portable);
-setEnv("PROGRAMS_DB_PATH", path.join(dataDir, "programs.json"), portable);
-setEnv("LOGO_DATA_DIR_PATH", path.join(dataDir, "logo-data"), portable);
-setEnv("MIRAKURUN_PLATFORM", "win32");
-
-require("../lib/server");
-
-function setEnv(name, value, force = false) {
-    if (force) {
-        process.env[name] = value;
-        return;
-    }
-
-    process.env[name] = process.env[name] || value;
-}
+require("./init");

@@ -1,0 +1,4 @@
+# Native Linux portable configuration (systemd or npm start).
+logLevel: 2
+path: data/mirakurun.sock
+port: 40772

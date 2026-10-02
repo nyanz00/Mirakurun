@@ -20,6 +20,7 @@ import * as path from "path";
 import * as semver from "semver";
 import * as yaml from "js-yaml";
 import Service from "../Service";
+import { canRestartService, restartService } from "../service-process";
 
 export type UpdateTargetName = "stable" | "develop" | "rollback";
 export type UpdateRelation = "ahead" | "same" | "behind" | "diverged" | "unknown";
@@ -191,11 +192,11 @@ class UpdateManager {
         if (this.running || this.starting || this.restartScheduled || this.job?.status !== "success" || !this.job.restartRequired) {
             throw new Error("再起動が必要な更新はありません");
         }
-        if (process.platform !== "win32" || process.env.USING_WINSER !== "1") {
+        if (!canRestartService()) {
             throw new Error("この起動方式ではWebから再起動できません");
         }
         this.restartScheduled = true;
-        setTimeout(() => process.exit(0), 500);
+        setTimeout(restartService, 500);
     }
 
     private async run(job: UpdateJob, requestedCommit: string, preserveChanges: boolean): Promise<void> {
@@ -350,7 +351,9 @@ class UpdateManager {
         const onDevelop = await this.isAncestor(current, developHead);
         let canApply = false;
         let reason: string | null = null;
-        if (kind !== "develop" && !(await this.hasUpdater(target))) {
+        if (process.platform === "linux" && !(await this.hasLinuxSupport(target))) {
+            reason = "このバージョンはLinuxの起動・再起動に未対応です";
+        } else if (kind !== "develop" && !(await this.hasUpdater(target))) {
             reason = "この安定版にはWebアップデーターがありません";
         } else if (relation === "same") {
             reason = "既にこのコミットです";
@@ -552,6 +555,12 @@ class UpdateManager {
     private async hasUpdater(commit: string): Promise<boolean> {
         const paths = await this.git(["ls-tree", "--name-only", commit, "--", "src/Mirakurun/update/UpdateManager.ts"]);
         return paths.trim() === "src/Mirakurun/update/UpdateManager.ts";
+    }
+
+    private async hasLinuxSupport(commit: string): Promise<boolean> {
+        const files = (await this.git(["ls-tree", "--name-only", commit, "--", "bin/init.js", "src/Mirakurun/service-process.ts"]))
+            .trim().split(/\r?\n/);
+        return files.includes("bin/init.js") && files.includes("src/Mirakurun/service-process.ts");
     }
 
     private git(args: string[], job?: UpdateJob): Promise<string> {

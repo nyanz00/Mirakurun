@@ -65,6 +65,9 @@ function getDefaultConfigPath(name: "server" | "tuners" | "channels"): string {
     if (IS_WIN32) {
         return `config/${name}.win32.yml`;
     }
+    if (name === "server" && process.platform === "linux" && process.env.MIRAKURUN_PORTABLE === "1" && !IS_DOCKER) {
+        return "config/server.linux.yml";
+    }
 
     return `config/${name}.yml`;
 }
