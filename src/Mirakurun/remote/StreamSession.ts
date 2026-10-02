@@ -8,6 +8,8 @@
 import * as http from "http";
 import { randomUUID } from "crypto";
 import { Writable } from "stream";
+import { ChannelType } from "../../../api";
+import { isGRChannelType } from "../common";
 import { requestJSON } from "./network";
 
 export interface StreamOptions {
@@ -21,6 +23,8 @@ export interface StreamOptions {
 
 export class StreamSession {
     private request?: http.ClientRequest;
+    private preparing = false;
+    private platformRequest?: AbortController;
     private response?: http.IncomingMessage;
     private deadline?: NodeJS.Timeout;
     private retry?: NodeJS.Timeout;
@@ -33,12 +37,14 @@ export class StreamSession {
 
     constructor(private options: StreamOptions, private output: Writable,
         private report: (event: { state: string; id: string; error?: string; retryable?: boolean }) => void,
-        private timeout = 20000, private retryDelay = 3000) {}
+        private timeout = 20000, private retryDelay = 3000,
+        private localPlatform: NodeJS.Platform = process.platform) {}
 
     start(): void {
-        if (this.stopped || this.request) {
+        if (this.stopped || this.request || this.preparing) {
             return;
         }
+        this.preparing = true;
         const generation = ++this.generation;
         this.id = randomUUID();
         const current = () => !this.stopped && generation === this.generation;
@@ -53,11 +59,66 @@ export class StreamSession {
         };
         this.report({ state: "starting", id: this.id });
         this.deadline = setTimeout(() => fail("配信応答待ちが20秒を超えました"), this.timeout);
+        void this.connect(current, fail);
+    }
+
+    setPriority(priority: number): void {
+        if (!Number.isSafeInteger(priority) || priority < 0 || priority === this.options.priority) {
+            return;
+        }
+        this.options.priority = priority;
+        void this.syncPriority();
+    }
+
+    stop(): void {
+        this.stopped = true;
+        this.controller.abort();
+        clearTimeout(this.retry);
+        this.cleanup();
+        this.report({ state: "idle", id: this.id });
+    }
+
+    private async connect(current: () => boolean, fail: (error: string, retryable?: boolean) => void): Promise<void> {
         const options = this.options;
+        let channel = options.channel;
+        if (isGRChannelType(options.type as ChannelType)) {
+            const host = options.host.includes(":") ? `[${options.host}]` : options.host;
+            this.platformRequest = new AbortController();
+            try {
+                const status = await requestJSON(`http://${host}:${options.port}/api/status`, "GET", undefined,
+                    this.platformRequest.signal);
+                if (!current()) {
+                    return;
+                }
+                const remotePlatform = status?.process?.platform;
+                if (typeof remotePlatform !== "string" || !remotePlatform) {
+                    throw new Error("接続先OSの情報がありません");
+                }
+                if ((this.localPlatform === "linux" && remotePlatform === "win32") ||
+                    (this.localPlatform === "win32" && remotePlatform === "linux")) {
+                    const number = Number(channel);
+                    const corrected = number + (remotePlatform === "win32" ? -13 : 13);
+                    if (!/^\d+$/.test(channel) || !Number.isSafeInteger(number) ||
+                        !Number.isSafeInteger(corrected) || corrected < 0) {
+                        throw new Error("地デジのチャンネル番号を補正できません");
+                    }
+                    channel = String(corrected);
+                }
+            } catch (error) {
+                // OS/configuration failures must not trigger automatic service recovery.
+                fail(`地デジの接続先確認: ${error.message}`, false);
+                return;
+            }
+        }
+        if (!current()) {
+            return;
+        }
+        this.platformRequest = undefined;
+        this.preparing = false;
         this.sentPriority = options.priority;
         this.request = http.get({
             host: options.host, port: options.port, agent: false,
-            path: `/api/channels/${encodeURIComponent(options.type)}/${encodeURIComponent(options.channel)}/stream?decode=${options.decode ? 1 : 0}`,
+            path: `/api/channels/${encodeURIComponent(options.type)}/${encodeURIComponent(channel)}/stream?decode=${options.decode ? 1 : 0}`,
             headers: {
                 "X-Mirakurun-Priority": String(options.priority), "X-Mirakurun-Remote-ID": this.id,
                 "User-Agent": "Mirakurun (Remote)"
@@ -88,22 +149,6 @@ export class StreamSession {
             void this.syncPriority();
         });
         this.request.once("error", error => fail(`配信接続: ${(error as NodeJS.ErrnoException).code || "error"}`));
-    }
-
-    setPriority(priority: number): void {
-        if (!Number.isSafeInteger(priority) || priority < 0 || priority === this.options.priority) {
-            return;
-        }
-        this.options.priority = priority;
-        void this.syncPriority();
-    }
-
-    stop(): void {
-        this.stopped = true;
-        this.controller.abort();
-        clearTimeout(this.retry);
-        this.cleanup();
-        this.report({ state: "idle", id: this.id });
     }
 
     private async syncPriority(): Promise<void> {
@@ -137,6 +182,9 @@ export class StreamSession {
 
     private cleanup(): void {
         ++this.generation;
+        this.preparing = false;
+        this.platformRequest?.abort();
+        this.platformRequest = undefined;
         clearTimeout(this.deadline);
         this.response?.unpipe(this.output);
         this.response?.destroy();

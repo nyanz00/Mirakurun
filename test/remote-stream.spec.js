@@ -6,8 +6,15 @@ const { PassThrough } = require("node:stream");
 const { setTimeout: delay } = require("node:timers/promises");
 const { StreamSession } = require("../lib/Mirakurun/remote/StreamSession");
 
-async function serve(t, handler) {
-    const server = http.createServer(handler);
+async function serve(t, handler, platform = process.platform) {
+    const server = http.createServer((req, res) => {
+        if (req.url === "/api/status" && platform !== false) {
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ process: { platform: typeof platform === "function" ? platform() : platform } }));
+        } else {
+            handler(req, res);
+        }
+    });
     server.listen(0, "127.0.0.1");
     await once(server, "listening");
     t.after(async () => {
@@ -18,6 +25,106 @@ async function serve(t, handler) {
 }
 
 describe("Remote streaming", () => {
+    it("corrects GR and all GR-ALT channel numbers only between Windows and Linux", async t => {
+        const paths = [];
+        let remotePlatform = "win32";
+        const options = await serve(t, (req, res) => {
+            paths.push(req.url);
+            res.write(Buffer.alloc(188, 0x47));
+        }, () => remotePlatform);
+        for (const type of ["GR", ...Array.from({ length: 20 }, (_, i) => `GR-ALT${i + 1}`)]) {
+            for (const [local, remote, input, expected] of [
+                ["linux", "win32", "24", "11"],
+                ["win32", "linux", "11", "24"],
+                ["linux", "linux", "24", "24"],
+                ["win32", "win32", "11", "11"]
+            ]) {
+                remotePlatform = remote;
+                const output = new PassThrough();
+                output.resume();
+                const session = new StreamSession({ ...options, type, channel: input }, output,
+                    () => undefined, 1000, 5, local);
+                const received = once(output, "data");
+                session.start();
+                try {
+                    await received;
+                    assert.equal(paths.at(-1), `/api/channels/${type}/${expected}/stream?decode=0`);
+                } finally {
+                    session.stop();
+                }
+            }
+        }
+    });
+
+    it("leaves satellite channels unchanged without querying the remote OS", async t => {
+        const paths = [];
+        const options = await serve(t, (req, res) => {
+            paths.push(req.url);
+            res.write(Buffer.alloc(188, 0x47));
+        }, null);
+        for (const [type, channel] of [["BS", "BS01_0"], ["CS", "CS08"], ["SKY", "JCSAT3-12"]]) {
+            const output = new PassThrough();
+            output.resume();
+            const session = new StreamSession({ ...options, type, channel }, output,
+                () => undefined, 1000, 5, "linux");
+            const received = once(output, "data");
+            session.start();
+            try {
+                await received;
+                assert.equal(paths.at(-1), `/api/channels/${type}/${channel}/stream?decode=0`);
+            } finally {
+                session.stop();
+            }
+        }
+    });
+
+    it("reports unavailable OS information or invalid cross-OS numbers without opening a stream", async t => {
+        for (const [platform, channel] of [[null, "24"], ["win32", "12"], ["win32", "T24"]]) {
+            let streams = 0;
+            const options = await serve(t, () => { streams++; }, platform);
+            const events = [];
+            const session = new StreamSession({ ...options, channel }, new PassThrough(),
+                event => events.push(event), 1000, 5, "linux");
+            session.start();
+            try {
+                for (let i = 0; i < 50 && !events.some(event => event.state === "failed"); i++) {
+                    await delay(5);
+                }
+                assert.equal(events.find(event => event.state === "failed")?.retryable, false);
+                assert.equal(streams, 0);
+            } finally {
+                session.stop();
+            }
+        }
+    });
+
+    it("cancels OS discovery on stop and avoids duplicate discovery while starting", async t => {
+        let probes = 0;
+        let streams = 0;
+        let respond;
+        const options = await serve(t, (req, res) => {
+            if (req.url === "/api/status") {
+                probes++;
+                respond = () => res.end(JSON.stringify({ process: { platform: "win32" } }));
+            } else {
+                streams++;
+                res.end();
+            }
+        }, false);
+        const session = new StreamSession({ ...options, channel: "24" },
+            new PassThrough(), () => undefined, 1000, 5, "linux");
+        session.start();
+        session.start();
+        for (let i = 0; i < 50 && !respond; i++) {
+            await delay(5);
+        }
+        session.stop();
+        respond();
+        await delay(30);
+        assert.equal(probes, 1);
+        assert.equal(streams, 0);
+    });
+
     it("forwards priority, updates it without reconnecting, and keeps a healthy stream beyond the startup deadline", async t => {
         let streams = 0;
         let sentPriority;
