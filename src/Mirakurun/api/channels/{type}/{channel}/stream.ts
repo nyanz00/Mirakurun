@@ -18,6 +18,7 @@ import * as api from "../../../../api";
 import * as apid from "../../../../../../api";
 import { channelTypes } from "../../../../common";
 import _ from "../../../../_";
+import remoteManager from "../../../../remote/RemoteManager";
 
 export const parameters = [
     {
@@ -66,6 +67,22 @@ export const get: Operation = (req, res) => {
         return;
     }
 
+    let priority = parseInt(req.get("X-Mirakurun-Priority"), 10) || 0;
+    const remoteId = req.get("X-Mirakurun-Remote-ID");
+    const tracked = remoteManager.beginIncoming(remoteId, req.ip, value => { priority = value; }, `${req.params.type}/${req.params.channel}`);
+    if (tracked) {
+        const write = res.write;
+        let updated = 0;
+        res.write = function (...args: any[]) {
+            if (res.statusCode === 200 && args[0]?.length && Date.now() - updated >= 1000) {
+                updated = Date.now();
+                remoteManager.incomingData(remoteId);
+            }
+            return write.apply(this, args);
+        };
+        res.once("close", () => remoteManager.incomingStage(remoteId, "closed"));
+    }
+
     let requestAborted = false;
     req.once("close", () => requestAborted = true);
 
@@ -74,12 +91,15 @@ export const get: Operation = (req, res) => {
 
     channel.getStream({
         id: userId,
-        priority: parseInt(req.get("X-Mirakurun-Priority"), 10) || 0,
+        get priority() { return priority; },
         agent: req.get("User-Agent"),
         url: req.url,
         disableDecoder: (parseInt(req.query.decode as string, 10) === 0)
     }, res)
         .then(tsFilter => {
+            if (tracked) {
+                remoteManager.incomingStage(remoteId, "allocated");
+            }
             if (requestAborted === true || req.aborted === true) {
                 return tsFilter.close();
             }
@@ -90,7 +110,12 @@ export const get: Operation = (req, res) => {
             res.setHeader("X-Mirakurun-Tuner-User-ID", userId);
             res.status(200);
         })
-        .catch((err) => api.responseStreamErrorHandler(res, err));
+        .catch((err) => {
+            if (tracked) {
+                remoteManager.incomingStage(remoteId, "failed", err.message !== "no available tuners");
+            }
+            api.responseStreamErrorHandler(res, err);
+        });
 };
 
 get.apiDoc = {

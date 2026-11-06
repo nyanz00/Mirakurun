@@ -524,6 +524,21 @@ export const ServerConfigView: React.FC = () => {
                         </FormGroup>
 
                         <FormGroup
+                            className="config-switch-group config-form-wide"
+                            labelFor="wait-for-tailscale"
+                            helperText="起動後30秒ごとにTailscaleのIPv4を確認し、待ち受け成功後に確認を終了します。接続許可IPの設定と、保存後の再起動が必要です。"
+                        >
+                            <Switch
+                                id="wait-for-tailscale"
+                                checked={editing.waitForTailscale ?? false}
+                                label="Tailscaleの起動を待って待ち受けを追加する"
+                                onChange={(e) => {
+                                    setEditing({ ...editing, waitForTailscale: e.currentTarget.checked });
+                                }}
+                            />
+                        </FormGroup>
+
+                        <FormGroup
                             className="config-switch-group"
                             labelFor="allow-pna"
                             helperText="Private Network Access / Local Network Access を許可 (ブラウザで保護されたコンテキストからのアクセスを認可できるようになります)"

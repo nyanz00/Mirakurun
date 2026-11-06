@@ -23,6 +23,7 @@ import ChannelItem from "./ChannelItem";
 import ServiceItem from "./ServiceItem";
 import TSFilter from "./TSFilter";
 import TSDecoder from "./TSDecoder";
+import { resolveRemoteTuner } from "./remote/config";
 
 export class Tuner {
     private _devices: TunerDevice[] = [];
@@ -126,14 +127,16 @@ export class Tuner {
             networkId = services[0].networkId;
         }
 
-        return this._initTS({
+        const user = {
             ...userReq,
             streamSetting: {
                 channel,
                 networkId,
                 parseEIT: true
             }
-        }, output);
+        };
+        Object.defineProperty(user, "priority", { get: () => userReq.priority, enumerable: true });
+        return this._initTS(user, output);
     }
 
     initServiceStream(service: ServiceItem, userReq: common.UserRequest, output: Writable): Promise<TSFilter> {
@@ -269,6 +272,12 @@ export class Tuner {
         const tuners = _.config.tuners;
 
         tuners.forEach((tuner, i) => {
+            try {
+                tuner = resolveRemoteTuner(tuner, _.config.server);
+            } catch (error) {
+                log.error("invalid remote reference in tuner#%d: %s", i, error.message);
+                return;
+            }
             if (!tuner.name || !tuner.types || (!tuner.remoteMirakurunHost && !tuner.command)) {
                 log.error("missing required property in tuner#%s configuration", i);
                 return;

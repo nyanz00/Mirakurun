@@ -13,101 +13,36 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-import * as apid from "../api";
-import Client from "./client";
-import { IncomingMessage } from "http";
+import { StreamSession } from "./Mirakurun/remote/StreamSession";
 
 process.title = "Mirakurun: Remote";
+const priorityArg = process.argv.find(arg => arg.startsWith("priority="));
+const session = new StreamSession({
+    host: process.argv[2], port: parseInt(process.argv[3], 10),
+    type: process.argv[4], channel: process.argv[5],
+    decode: process.argv.includes("decode"),
+    priority: priorityArg ? parseInt(priorityArg.slice(9), 10) : 0
+}, process.stdout, event => {
+    if (process.connected) {
+        process.send({ remote: event }, () => undefined);
+    }
+    if (event.state !== "idle") {
+        console.error("remote:", event.id, event.state, event.error || "");
+    }
+});
 
 process.stdin.resume();
 process.stdin.on("data", () => exit());
 process.on("SIGTERM", () => exit());
-
-const opt = {
-    host: process.argv[2],
-    port: parseInt(process.argv[3], 10),
-    type: process.argv[4] as apid.ChannelType,
-    channel: process.argv[5],
-    decode: process.argv.includes("decode") === true
-};
-
-console.error("remote:", opt);
-
-let stream: IncomingMessage;
-let reconnectTimer: NodeJS.Timeout;
-let exiting = false;
-
-const client = new Client();
-client.host = opt.host;
-client.port = opt.port;
-client.userAgent = "Mirakurun (Remote)";
-
-connect();
-
-function connect() {
-    client.getChannelStream(opt.type, opt.channel, opt.decode)
-        .then(_stream => {
-            stream = _stream;
-            stream.pipe(process.stdout);
-            stream.once("end", () => reconnect("end"));
-            stream.once("close", () => reconnect("close"));
-            stream.once("aborted", () => reconnect("aborted"));
-            stream.once("error", err => {
-                console.error("remote:", "(stream error)", err.message);
-                reconnect("error");
-            });
-        })
-        .catch(err => {
-            if (err.req) {
-                console.error("remote:", "(error)", err.req.path, err.statusCode, err.statusMessage);
-            } else if (err.message) {
-                console.error("remote:", "(error)", err.message);
-            } else {
-                console.error("remote:", "(error)", err.address, err.code);
-            }
-            reconnect("connect");
-        });
-}
-
-function reconnect(reason: string) {
-    if (exiting) {
-        return;
+process.on("disconnect", () => exit());
+process.on("message", (message: any) => {
+    if (message && message.type === "priority") {
+        session.setPriority(message.priority);
     }
+});
+session.start();
 
-    console.error("remote:", "reconnect.", reason);
-
-    if (stream) {
-        stream.unpipe();
-        stream.removeAllListeners();
-        stream.destroy();
-        stream = null;
-    }
-
-    if (!reconnectTimer) {
-        reconnectTimer = setTimeout(() => {
-            reconnectTimer = null;
-            connect();
-        }, 3000);
-    }
-}
-
-function exit(code = 0) {
-    if (exiting) {
-        return;
-    }
-
-    exiting = true;
-    console.error("remote:", "exit.");
-
-    if (reconnectTimer) {
-        clearTimeout(reconnectTimer);
-        reconnectTimer = null;
-    }
-
-    if (stream) {
-        stream.unpipe();
-        stream.destroy();
-    }
-
-    process.exit(code);
+function exit() {
+    session.stop();
+    process.exit(0);
 }

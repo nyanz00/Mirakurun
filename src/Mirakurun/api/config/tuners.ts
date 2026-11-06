@@ -17,6 +17,7 @@ import { Operation } from "express-openapi";
 import * as api from "../../api";
 import * as apid from "../../../../api";
 import * as config from "../../config";
+import { resolveRemoteTuner } from "../../remote/config";
 
 export const get: Operation = async (req, res) => {
     res.status(200);
@@ -44,6 +45,15 @@ get.apiDoc = {
 
 export const put: Operation = async (req, res) => {
     const tuners: apid.ConfigTuners = req.body;
+
+    try {
+        const server = await config.loadServer();
+        for (const tuner of tuners) {
+            resolveRemoteTuner(tuner, server);
+        }
+    } catch (error) {
+        return api.responseError(res, 400, error.message);
+    }
 
     await config.saveTuners(tuners);
 
