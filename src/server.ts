@@ -41,26 +41,17 @@ if (!isWindows && isRoot) {
 
 process.title = "Mirakurun: Server";
 
-process.on("uncaughtException", err => {
-    ++status.errorCount.uncaughtException;
-    console.error(err.stack);
-});
-process.on("unhandledRejection", err => {
-    ++status.errorCount.unhandledRejection;
-    console.error(err);
-});
-
 function setEnv(name: string, value: string) {
     process.env[name] = process.env[name] || value;
 }
 
-function setWindowsPortableEnv(): void {
+function setPortableEnv(): void {
     const rootDir = resolve(__dirname, "..");
     const configDir = join(rootDir, "data", "config");
     const dataDir = join(rootDir, "data", "db");
     const logDir = join(rootDir, "data", "log");
 
-    ensureWindowsPortableData(configDir, dataDir, logDir);
+    ensurePortableData(configDir, dataDir, logDir);
 
     setEnv("SERVER_CONFIG_PATH", join(configDir, "server.yml"));
     setEnv("TUNERS_CONFIG_PATH", join(configDir, "tuners.yml"));
@@ -69,12 +60,12 @@ function setWindowsPortableEnv(): void {
     setEnv("PROGRAMS_DB_PATH", join(dataDir, "programs.json"));
     setEnv("LOGO_DATA_DIR_PATH", join(dataDir, "logo-data"));
     setEnv("LOGO_MAP_PATH", join(dataDir, "logo-map.json"));
-    setEnv("MIRAKURUN_PLATFORM", "win32");
+    setEnv("MIRAKURUN_PLATFORM", process.platform);
 
     setupCliLogFiles(logDir);
 }
 
-function ensureWindowsPortableData(configDir: string, dataDir: string, logDir: string): void {
+function ensurePortableData(configDir: string, dataDir: string, logDir: string): void {
     ensureDirectory(configDir, "config");
     ensureDirectory(dataDir, "db");
     ensureDirectory(logDir, "log");
@@ -83,7 +74,7 @@ function ensureWindowsPortableData(configDir: string, dataDir: string, logDir: s
 function ensureDirectory(path: string, name: string): void {
     if (existsSync(path) === true) {
         if (statSync(path).isDirectory() === false) {
-            console.error(`Windows portable ${name} path exists but is not a directory: ${path}`);
+            console.error(`Portable ${name} path exists but is not a directory: ${path}`);
             process.exit(1);
         }
         return;
@@ -93,7 +84,7 @@ function ensureDirectory(path: string, name: string): void {
 }
 
 function setupCliLogFiles(logDir: string): void {
-    if (process.env.USING_WINSER === "1" || process.env.MIRAKURUN_CLI_LOG === "0") {
+    if (process.env.USING_WINSER === "1" || process.env.USING_SYSTEMD === "1" || process.env.MIRAKURUN_CLI_LOG === "0") {
         return;
     }
 
@@ -120,8 +111,8 @@ function setupCliLogFiles(logDir: string): void {
     }) as typeof process.stderr.write;
 }
 
-if (isWindows) {
-    setWindowsPortableEnv();
+if (isWindows || (process.env.MIRAKURUN_PORTABLE === "1" && process.env.DOCKER !== "YES")) {
+    setPortableEnv();
 } else {
     setEnv("SERVER_CONFIG_PATH", "/usr/local/etc/mirakurun/server.yml");
     setEnv("TUNERS_CONFIG_PATH", "/usr/local/etc/mirakurun/tuners.yml");
@@ -143,6 +134,16 @@ import Program from "./Mirakurun/Program";
 import Server from "./Mirakurun/Server";
 import * as config from "./Mirakurun/config";
 import * as log from "./Mirakurun/log";
+
+// Bootstrap failures must reach Node's default handler before status is available.
+process.on("uncaughtException", err => {
+    ++status.errorCount.uncaughtException;
+    console.error(err.stack);
+});
+process.on("unhandledRejection", err => {
+    ++status.errorCount.unhandledRejection;
+    console.error(err);
+});
 
 (async function top() {
     _.config.server = await config.loadServer();

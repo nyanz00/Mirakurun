@@ -1,11 +1,12 @@
 #!/bin/bash
 
-export SERVER_CONFIG_PATH=/app-config/server.yml
-export TUNERS_CONFIG_PATH=/app-config/tuners.yml
-export CHANNELS_CONFIG_PATH=/app-config/channels.yml
-export SERVICES_DB_PATH=/app-data/services.json
-export PROGRAMS_DB_PATH=/app-data/programs.json
-export LOGO_DATA_DIR_PATH=/app-data/logo-data
+export SERVER_CONFIG_PATH="${SERVER_CONFIG_PATH:-/app-config/server.yml}"
+export TUNERS_CONFIG_PATH="${TUNERS_CONFIG_PATH:-/app-config/tuners.yml}"
+export CHANNELS_CONFIG_PATH="${CHANNELS_CONFIG_PATH:-/app-config/channels.yml}"
+export SERVICES_DB_PATH="${SERVICES_DB_PATH:-/app-data/services.json}"
+export PROGRAMS_DB_PATH="${PROGRAMS_DB_PATH:-/app-data/programs.json}"
+export LOGO_DATA_DIR_PATH="${LOGO_DATA_DIR_PATH:-/app-data/logo-data}"
+export LOGO_MAP_PATH="${LOGO_MAP_PATH:-/app-data/logo-map.json}"
 
 export PATH=/opt/bin:$PATH
 export DOCKER=YES
@@ -74,7 +75,7 @@ function start() {
     export NODE_ENV=production
     node --max-semi-space-size=64 -r source-map-support/register lib/server.js &
   else
-    npm run debug &
+    npm run debug.unix &
   fi
 
   wait

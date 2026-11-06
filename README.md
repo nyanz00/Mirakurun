@@ -8,13 +8,17 @@ A Japanese digital TV tuner API server specifically designed for "Air" (code nam
 
 このフォークは、バージョン4.0.0以降の Mirakurun を Windows ネイティブ環境で動作させ、独自の機能を追加した物です。<br>
 現在まだ改修中で、正常な動作は保証していません。<br>
-また、Windows 環境ではある程度動作確認を行っていますが、Linux 上での動作確認は行っていません。<br>
+Windows 環境と、Ubuntu 上での起動・サービス運用を確認しています。Linux の実機チューナーでの動作は未確認です。<br>
 このフォークのその他詳細な変更点は [別途ドキュメント](doc/mirakurun-nyanz.md) にまとめているので、そちらをご覧ください。<br>
 
 ### 動作環境
 
 - Windows 10 / 11
 - Node.js 22 / 24
+
+### Linux
+
+Linux の直接起動と systemd 登録については [Linux 版ドキュメント](doc/linux-nyanz.md) を参照してください。実機チューナーでの動作は未確認です。
 
 ### インストール
 

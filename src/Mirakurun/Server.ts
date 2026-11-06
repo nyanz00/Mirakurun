@@ -73,7 +73,7 @@ export class Server {
         const addresses: string[] = [];
 
         if (serverConfig.path) {
-            addresses.push(serverConfig.path);
+            addresses.push(process.platform === "win32" ? serverConfig.path : path.resolve(serverConfig.path));
         }
 
         if (typeof serverConfig.port === "number") {

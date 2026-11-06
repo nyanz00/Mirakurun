@@ -11,6 +11,7 @@ import _ from "../_";
 import * as log from "../log";
 import { hostAddresses, normalizeIP, pingHost, requestJSON } from "./network";
 import { Recovery } from "./Recovery";
+import { canRestartService, restartService } from "../service-process";
 
 interface Peer extends RemotePeerStatus {
     pending?: Promise<void>;
@@ -53,8 +54,8 @@ export class RemoteManager {
         private now = Date.now,
         private request = requestJSON,
         private ping = pingHost,
-        private restart = () => process.exit(0),
-        private restartSupported = () => process.platform === "win32" && process.env.USING_WINSER === "1"
+        private restart = restartService,
+        private restartSupported = canRestartService
     ) {}
 
     start(): void {
