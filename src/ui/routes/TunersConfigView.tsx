@@ -42,6 +42,7 @@ import "./TunersConfigView.sass";
 
 const configAPI = "/api/config/tuners";
 const grAltChannelTypes = Array.from({ length: 20 }, (_, i) => `GR-ALT${i + 1}` as ChannelType);
+const primaryChannelTypeOptions = ["GR", "BS", "CS", "SKY"] as ChannelType[];
 const channelTypeOptions = ["GR" as ChannelType, ...grAltChannelTypes, "BS" as ChannelType, "CS" as ChannelType, "SKY" as ChannelType];
 const typesIndex = channelTypeOptions;
 
@@ -177,6 +178,18 @@ export const TunersConfigView: React.FC = () => {
         setEditing(newEditing);
     };
 
+    const handleTypeChange = (index: number, type: ChannelType, checked: boolean) => {
+        if (!editing) return;
+        let newTypes = [...(editing[index].types || [])];
+        if (checked) {
+            newTypes.push(type);
+            newTypes = sortTypes(newTypes);
+        } else {
+            newTypes = newTypes.filter(t => t !== type);
+        }
+        updateTuner(index, { types: newTypes });
+    };
+
     const deleteTunerProperty = (index: number, key: keyof ConfigTunersItem) => {
         if (!editing) return;
         const newEditing = [...editing];
@@ -304,7 +317,7 @@ export const TunersConfigView: React.FC = () => {
                                 </td>
                                 <td>
                                     <div className="types-checkboxes">
-                                        {channelTypeOptions.map((type) => {
+                                        {primaryChannelTypeOptions.map((type) => {
                                             const checked = tuner.types?.includes(type) ?? false;
                                             return (
                                                 <Checkbox
@@ -312,19 +325,32 @@ export const TunersConfigView: React.FC = () => {
                                                     label={getChannelTypeDisplayName(type)}
                                                     checked={checked}
                                                     inline
-                                                    onChange={(e) => {
-                                                        let newTypes = [...(tuner.types || [])];
-                                                        if (e.currentTarget.checked) {
-                                                            newTypes.push(type);
-                                                            newTypes = sortTypes(newTypes);
-                                                        } else {
-                                                            newTypes = newTypes.filter(t => t !== type);
-                                                        }
-                                                        updateTuner(i, { types: newTypes });
-                                                    }}
+                                                    onChange={(e) => handleTypeChange(i, type, e.currentTarget.checked)}
                                                 />
                                             );
                                         })}
+                                        <details className="gr-alt-types">
+                                            <summary title={`選択中: ${grAltChannelTypes
+                                                .filter(type => tuner.types?.includes(type))
+                                                .map(getChannelTypeDisplayName)
+                                                .join(", ") || "なし"}`}>
+                                                GR-ALT ({grAltChannelTypes.filter(type => tuner.types?.includes(type)).length})
+                                            </summary>
+                                            <div className="gr-alt-checkboxes">
+                                                {grAltChannelTypes.map((type) => {
+                                                    const checked = tuner.types?.includes(type) ?? false;
+                                                    return (
+                                                        <Checkbox
+                                                            key={type}
+                                                            label={getChannelTypeDisplayName(type)}
+                                                            checked={checked}
+                                                            inline
+                                                            onChange={(e) => handleTypeChange(i, type, e.currentTarget.checked)}
+                                                        />
+                                                    );
+                                                })}
+                                            </div>
+                                        </details>
                                     </div>
                                 </td>
                                 <td>
