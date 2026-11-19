@@ -9,7 +9,7 @@ import * as React from "react";
 import { useEffect, useRef, useState } from "react";
 import { DateTime } from "luxon";
 import { Button, Callout, Dialog, DialogBody, DialogFooter, FormGroup, HTMLSelect, InputGroup, Spinner, Switch, Tag } from "@blueprintjs/core";
-import { ConfigServer, RemoteMirakurun, RemoteStatus } from "../../../api";
+import { ConfigServer, RemoteMirakurun, RemotePeerStatus, RemoteStatus } from "../../../api";
 import { state } from "../modules/state";
 import "./RemoteSection.sass";
 
@@ -17,6 +17,16 @@ const labels = { unknown: "未確認", online: "正常", suspect: "再確認中"
     idle: "未使用", starting: "開始待ち", receiving: "受信中", failed: "失敗" };
 const directionIntents = { unknown: "none", online: "success", suspect: "warning", offline: "danger", error: "danger" } as const;
 const time = (value?: number) => value ? DateTime.fromMillis(value).setZone("Asia/Tokyo").setLocale("ja").toFormat("MM/dd HH:mm:ss") : "未確認";
+
+function ConnectionTag({ state }: { state: RemotePeerStatus["connectionState"] }) {
+    if (state === "online") {
+        return <Tag intent="success">双方向: 正常</Tag>;
+    }
+    if (!state || state === "unknown") {
+        return <Tag>双方向: 未確認</Tag>;
+    }
+    return <Tag intent="danger">双方向: 異常</Tag>;
+}
 
 async function json(url: string, method = "GET", body?: unknown, signal?: AbortSignal) {
     const response = await fetch(url, { method, signal, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -110,8 +120,7 @@ export const RemoteSection: React.FC = () => {
         {status?.peers.map(peer => <div className="remote-machine" key={peer.id}>
             <div className="remote-toolbar">
                 <strong>{peer.name}</strong><Tag>{peer.role === "child" ? "子機" : "親機"}</Tag>
-                {peer.connectionState === "error" && peer.state !== "error" && peer.reverse?.state !== "error" &&
-                    <Tag intent="danger">接続: 設定エラー</Tag>}
+                <ConnectionTag state={peer.connectionState} />
                 <Tag intent={directionIntents[peer.state]}>
                     自分→相手: {labels[peer.state]}
                 </Tag>
